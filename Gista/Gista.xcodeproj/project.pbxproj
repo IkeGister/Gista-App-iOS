@@ -133,6 +133,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0B000ED92D28D83B00B10C27 /* Exceptions for "Gista" folder in "Shared" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/Utilities/Logger.swift,
+			);
+			target = 0B432CC22D27431B00A5105D /* Shared */;
+		};
 		0B432C542D2729B600A5105D /* Exceptions for "Gista" folder in "Gista" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -149,20 +156,17 @@
 		};
 		0B432CDD2D27431B00A5105D /* Exceptions for "Shared" folder in "Shared" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				SharedConstants.swift,
-			);
 			publicHeaders = (
 				Shared.h,
 			);
 			target = 0B432CC22D27431B00A5105D /* Shared */;
 		};
-		0B432CED2D2743C300A5105D /* Exceptions for "Shared" folder in "Gista" target */ = {
+		0BC780CC2D28710A00CB1001 /* Exceptions for "Gista" folder in "GistaShare" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				SharedConstants.swift,
+				App/Constants/AppContants.swift,
 			);
-			target = 0B432C2D2D2729B300A5105D /* Gista */;
+			target = 0B432CAB2D27400500A5105D /* GistaShare */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -171,6 +175,8 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				0B432C542D2729B600A5105D /* Exceptions for "Gista" folder in "Gista" target */,
+				0BC780CC2D28710A00CB1001 /* Exceptions for "Gista" folder in "GistaShare" target */,
+				0B000ED92D28D83B00B10C27 /* Exceptions for "Gista" folder in "Shared" target */,
 			);
 			path = Gista;
 			sourceTree = "<group>";
@@ -196,7 +202,6 @@
 		0B432CC42D27431B00A5105D /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				0B432CED2D2743C300A5105D /* Exceptions for "Shared" folder in "Gista" target */,
 				0B432CDD2D27431B00A5105D /* Exceptions for "Shared" folder in "Shared" target */,
 			);
 			path = Shared;
@@ -898,6 +903,7 @@
 		0B432CB82D27400500A5105D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GistaShare/GistaShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = VW5K99T4JJ;
@@ -923,6 +929,7 @@
 		0B432CB92D27400500A5105D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GistaShare/GistaShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = VW5K99T4JJ;

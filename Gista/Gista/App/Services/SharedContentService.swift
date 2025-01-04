@@ -26,25 +26,39 @@ class SharedContentService: ObservableObject {
         }
         self.userDefaults = groupDefaults
         
+        // Add test check
+        testAppGroupAccess()
+        
         // Check for shared content on initialization
         checkForSharedContent()
         
         // Setup notification observer for when app becomes active
         NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
             .sink { [weak self] _ in
+                Logger.log("App became active, checking for shared content", level: .debug)
                 self?.checkForSharedContent()
             }
             .store(in: &cancellables)
     }
     
+    private func testAppGroupAccess() {
+        if let testValue = userDefaults.string(forKey: "testKey") {
+            print("✅ Main App: Successfully read from App Group: \(testValue)")
+        } else {
+            print("⚠️ Main App: No test value found in App Group")
+        }
+    }
+    
     func checkForSharedContent() {
-        guard !isProcessing else { return }
-        isProcessing = true
-        
-        guard let queue = userDefaults.array(forKey: "ShareQueue") as? [[String: Any]] else {
-            isProcessing = false
+        Logger.log("Checking for shared content", level: .debug)
+        guard let queue = userDefaults.array(forKey: AppConstants.shareQueueKey) as? [[String: Any]] else {
+            Logger.log("No shared content found", level: .debug)
             return
         }
+        
+        Logger.log("Found \(queue.count) shared items", level: .debug)
+        guard !isProcessing else { return }
+        isProcessing = true
         
         for item in queue {
             if let type = item["type"] as? String {

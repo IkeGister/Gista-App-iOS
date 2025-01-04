@@ -23,6 +23,7 @@ struct GistaApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(sharedContentService)
+                .preferredColorScheme(.dark)
                 .onAppear {
                     sharedContentService.checkForSharedContent()
                 }

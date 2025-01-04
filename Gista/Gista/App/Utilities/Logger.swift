@@ -7,14 +7,14 @@
 
 import Foundation
 
-enum Logger {
-    enum LogLevel {
+public enum Logger {
+    public enum LogLevel {
         case debug
         case info
         case warning
         case error
         
-        var prefix: String {
+        public var prefix: String {
             switch self {
             case .debug: return "🔍 DEBUG"
             case .info: return "ℹ️ INFO"
@@ -24,7 +24,7 @@ enum Logger {
         }
     }
     
-    static func log(
+    public static func log(
         _ message: String,
         level: LogLevel = .debug,
         context: String? = nil,
@@ -40,7 +40,7 @@ enum Logger {
         #endif
     }
     
-    static func error(
+    public static func error(
         _ error: Error,
         context: String? = nil,
         file: String = #file,
