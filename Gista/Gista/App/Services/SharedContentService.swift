@@ -11,14 +11,16 @@ import UIKit
 import Shared
 
 class SharedContentService: ObservableObject {
+    // Add static instance for singleton pattern
+    static let shared = SharedContentService()
+    
     @Published var pendingItems: [SharedItem] = []
     @Published var isProcessing = false
     
     private let userDefaults: UserDefaults
-    private let appGroupId = "group.com.yourdomain.gista"
     private var cancellables = Set<AnyCancellable>()
     
-    init() {
+    private init() {  // Make init private
         Logger.log("Initializing SharedContentService", level: .info)
         guard let groupDefaults = UserDefaults(suiteName: AppConstants.appGroupId) else {
             Logger.error(SharedContentError.invalidAppGroup, context: "Initialization")
@@ -26,10 +28,7 @@ class SharedContentService: ObservableObject {
         }
         self.userDefaults = groupDefaults
         
-        // Add test check
-        testAppGroupAccess()
-        
-        // Check for shared content on initialization
+        // Initial check for content
         checkForSharedContent()
         
         // Setup notification observer for when app becomes active
@@ -39,6 +38,20 @@ class SharedContentService: ObservableObject {
                 self?.checkForSharedContent()
             }
             .store(in: &cancellables)
+    }
+    
+    private func addPendingItem(_ item: SharedItem) {
+        // Check for duplicates before adding
+        guard !pendingItems.contains(where: { $0.content == item.content }) else {
+            Logger.log("Skipping duplicate item: \(item.content)", level: .debug)
+            return
+        }
+        
+        DispatchQueue.main.async {
+            self.pendingItems.append(item)
+            Logger.log("New pendingItems count: \(self.pendingItems.count)", level: .debug)
+            self.notifyNewContent()
+        }
     }
     
     private func testAppGroupAccess() {
@@ -51,38 +64,57 @@ class SharedContentService: ObservableObject {
     
     func checkForSharedContent() {
         Logger.log("Checking for shared content", level: .debug)
+        
+        // Log the app group ID we're using
+        Logger.log("Using App Group ID: \(AppConstants.appGroupId)", level: .debug)
+        
         guard let queue = userDefaults.array(forKey: AppConstants.shareQueueKey) as? [[String: Any]] else {
-            Logger.log("No shared content found", level: .debug)
+            Logger.log("No shared content found or invalid format", level: .debug)
             return
         }
         
         Logger.log("Found \(queue.count) shared items", level: .debug)
-        guard !isProcessing else { return }
+        guard !isProcessing else { 
+            Logger.log("Already processing items, skipping", level: .debug)
+            return 
+        }
         isProcessing = true
         
-        for item in queue {
+        for (index, item) in queue.enumerated() {
+            Logger.log("Processing item \(index): \(item)", level: .debug)
+            
             if let type = item["type"] as? String {
                 switch type {
                 case "url":
                     if let urlString = item["content"] as? String {
+                        Logger.log("Handling URL: \(urlString)", level: .debug)
                         handleSharedURL(urlString)
                     }
                 case "pdf":
                     if let filename = item["filename"] as? String {
+                        Logger.log("Handling PDF: \(filename)", level: .debug)
                         handleSharedPDF(filename)
                     }
                 case "text":
                     if let content = item["content"] as? String {
+                        Logger.log("Handling text content", level: .debug)
                         handleSharedText(content)
                     }
                 default:
+                    Logger.log("Unknown type: \(type)", level: .debug)
                     break
                 }
             }
         }
         
-        // Clear the queue after processing
-        userDefaults.removeObject(forKey: "ShareQueue")
+        Logger.log("Current pendingItems count: \(pendingItems.count)", level: .debug)
+        
+        // Only clear the queue if we successfully processed items
+        if !pendingItems.isEmpty {
+            userDefaults.removeObject(forKey: AppConstants.shareQueueKey)
+            Logger.log("Cleared queue after successful processing", level: .debug)
+        }
+        
         isProcessing = false
     }
     
@@ -119,17 +151,10 @@ class SharedContentService: ObservableObject {
         addPendingItem(sharedItem)
     }
     
-    private func addPendingItem(_ item: SharedItem) {
-        DispatchQueue.main.async {
-            self.pendingItems.append(item)
-            self.notifyNewContent()
-        }
-    }
-    
     private func notifyNewContent() {
-        // Post notification for new content
+        // Post notification for new content using constant
         NotificationCenter.default.post(
-            name: NSNotification.Name("NewSharedContentReceived"),
+            name: NSNotification.Name(AppConstants.Notifications.newContentReceived),
             object: nil
         )
         

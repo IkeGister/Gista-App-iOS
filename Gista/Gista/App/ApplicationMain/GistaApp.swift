@@ -10,7 +10,7 @@ import UserNotifications
 
 @main
 struct GistaApp: App {
-    @StateObject private var sharedContentService = SharedContentService()
+    @StateObject private var sharedContentService = SharedContentService.shared
     
     init() {
         // Request notification permissions

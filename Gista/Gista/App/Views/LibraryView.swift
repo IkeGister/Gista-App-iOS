@@ -112,17 +112,23 @@ struct LibraryView: View {
                 }
                 .tag(0)
             
+            MyResourcesView()
+                .tabItem {
+                    Label("Resources", systemImage: "link.circle")
+                }
+                .tag(1)
+            
             UserProfile()
                 .tabItem {
                     Label("Profile", systemImage: "person.circle")
                 }
-                .tag(1)
+                .tag(2)
             
             Settings()
                 .tabItem {
                     Label("Settings", systemImage: "gear")
                 }
-                .tag(2)
+                .tag(3)
         }
     }
     
