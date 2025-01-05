@@ -13,6 +13,8 @@ import Shared
 
 class ShareViewController: UIViewController {
     private var isDismissing = false
+    private var processingCount = 0
+    private var processedURLs = Set<String>() // Store normalized URLs
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -71,57 +73,55 @@ class ShareViewController: UIViewController {
     
     private func processSharedItem() {
         Logger.log("Processing shared item", level: .debug)
-        var processingCount = 0
         
         guard let extensionItems = extensionContext?.inputItems as? [NSExtensionItem] else {
             Logger.log("No extension items found", level: .debug)
-            completeRequest()
             return
         }
         
-        print("Found \(extensionItems.count) extension items")
-        
         for extensionItem in extensionItems {
-            guard let itemProviders = extensionItem.attachments else { 
-                print("No attachments found")
-                continue 
-            }
-            
-            print("Processing \(itemProviders.count) providers")
+            guard let itemProviders = extensionItem.attachments else { continue }
             
             for provider in itemProviders {
                 processingCount += 1
                 
-                // Handle URLs
                 if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
-                    print("Found URL type")
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { [weak self] (url, error) in
+                        guard let self = self else { return }
+                        
                         if let shareURL = url as? URL {
-                            print("Processing URL: \(shareURL)")
-                            self?.handleURL(shareURL)
+                            // Always normalize the URL first
+                            let normalizedURL = self.normalizeURL(shareURL)?.absoluteString ?? shareURL.absoluteString
+                            Logger.log("Checking URL: \(normalizedURL)", level: .debug)
+                            
+                            // Check against normalized URLs
+                            if !self.processedURLs.contains(normalizedURL) {
+                                self.processedURLs.insert(normalizedURL)
+                                Logger.log("Processing new URL: \(normalizedURL)", level: .debug)
+                                self.handleURL(URL(string: normalizedURL)!)
+                            } else {
+                                Logger.log("Skipping duplicate URL: \(normalizedURL)", level: .debug)
+                            }
                         }
-                        processingCount -= 1
-                        if processingCount == 0 {
-                            self?.completeRequest()
-                        }
+                        self.itemProcessed()
                     }
                 }
                 
-                // Handle PDFs
                 if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
                     provider.loadItem(forTypeIdentifier: UTType.pdf.identifier, options: nil) { [weak self] (pdf, error) in
                         if let pdfURL = pdf as? URL {
                             self?.handlePDF(pdfURL)
                         }
+                        self?.itemProcessed()
                     }
                 }
                 
-                // Handle text
                 if provider.hasItemConformingToTypeIdentifier(UTType.text.identifier) {
                     provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { [weak self] (text, error) in
                         if let sharedText = text as? String {
                             self?.handleText(sharedText)
                         }
+                        self?.itemProcessed()
                     }
                 }
             }
@@ -134,9 +134,16 @@ class ShareViewController: UIViewController {
         }
     }
     
+    private func itemProcessed() {
+        processingCount -= 1
+        // Don't auto-complete, just log
+        if processingCount == 0 {
+            Logger.log("All items processed", level: .debug)
+        }
+    }
+    
     private func handleURL(_ url: URL) {
         saveToAppGroup(["type": "url", "content": url.absoluteString])
-        // Don't call completeRequest here - let the user dismiss
     }
     
     private func handlePDF(_ url: URL) {
@@ -145,12 +152,10 @@ class ShareViewController: UIViewController {
             saveToAppGroup(["type": "pdf", "filename": filename, "size": pdfData.count])
             savePDFToSharedContainer(pdfData, filename: filename)
         }
-        completeRequest()
     }
     
     private func handleText(_ text: String) {
         saveToAppGroup(["type": "text", "content": text])
-        completeRequest()
     }
     
     private func saveToAppGroup(_ data: [String: Any]) {
@@ -171,34 +176,7 @@ class ShareViewController: UIViewController {
     
     private func completeRequest() {
         Logger.log("Completing request", level: .debug)
-        
-        // Prevent multiple dismissals
-        guard !isDismissing else {
-            Logger.log("Already dismissing, ignoring request", level: .debug)
-            return
-        }
-        
-        isDismissing = true
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            Logger.log("Attempting to dismiss extension", level: .debug)
-            
-            // First cancel the extension context
-            self.extensionContext?.cancelRequest(withError: NSError(domain: NSCocoaErrorDomain, code: 0))
-            
-            // Then close the host app
-            var responder: UIResponder? = self
-            while responder != nil {
-                if let application = responder as? UIApplication {
-                    Logger.log("Found UIApplication, suspending", level: .debug)
-                    application.perform(Selector(("suspend")))
-                    break
-                }
-                responder = responder?.next
-            }
-        }
+        extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }
     
     private func testAppGroupAccess() {
@@ -218,5 +196,28 @@ class ShareViewController: UIViewController {
         activityIndicator.center = view.center
         activityIndicator.startAnimating()
         view.addSubview(activityIndicator)
+    }
+    
+    private func normalizeURL(_ url: URL) -> URL? {
+        var urlString = url.absoluteString
+        Logger.log("Attempting to normalize URL: \(urlString)", level: .debug)
+        
+        // Common mobile URL patterns with more specific replacements
+        let mobilePatterns: [(pattern: String, replacement: String)] = [
+            ("://m.", "://"),          // m.website.com -> website.com
+            ("://en.m.", "://en."),    // en.m.website.com -> en.website.com
+            ("://mobile.", "://"),      // mobile.website.com -> website.com
+        ]
+        
+        for (pattern, replacement) in mobilePatterns {
+            if urlString.contains(pattern) {
+                urlString = urlString.replacingOccurrences(of: pattern, with: replacement)
+                Logger.log("Normalized mobile URL: \(urlString)", level: .debug)
+                return URL(string: urlString)
+            }
+        }
+        
+        Logger.log("URL already in desktop format: \(urlString)", level: .debug)
+        return url
     }
 } 

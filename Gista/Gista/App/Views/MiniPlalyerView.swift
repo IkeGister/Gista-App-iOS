@@ -103,6 +103,8 @@ struct MiniPlayerView_Previews: PreviewProvider {
             MiniPlayerView()
         }
         .environmentObject(NavigationManager())
+        .preferredColorScheme(.dark)
+
     }
 }
 
