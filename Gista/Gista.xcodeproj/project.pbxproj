@@ -14,7 +14,6 @@
 		0B432CE32D27432F00A5105D /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; };
 		0B432CE42D27432F00A5105D /* Shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0B432CE82D27433A00A5105D /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; };
-		0B432CE92D27433A00A5105D /* Shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,13 +30,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 0B432C2D2D2729B300A5105D;
 			remoteInfo = Gista;
-		};
-		0B432CB42D27400500A5105D /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0B432C262D2729B300A5105D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 0B432CAB2D27400500A5105D;
-			remoteInfo = GistaShare;
 		};
 		0B432CCE2D27431B00A5105D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -67,7 +59,14 @@
 			remoteGlobalIDString = 0B432CC22D27431B00A5105D;
 			remoteInfo = Shared;
 		};
-		0B432CEA2D27433A00A5105D /* PBXContainerItemProxy */ = {
+		0BFC9A982D39A36A00B8DEBE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0B432C262D2729B300A5105D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0B432CAB2D27400500A5105D;
+			remoteInfo = GistaShare;
+		};
+		0BFC9A9A2D39A4E300B8DEBE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0B432C262D2729B300A5105D /* Project object */;
 			proxyType = 1;
@@ -116,7 +115,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				0B432CE92D27433A00A5105D /* Shared.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -156,6 +154,11 @@
 		};
 		0B432CDD2D27431B00A5105D /* Exceptions for "Shared" folder in "Shared" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Models/Article.swift,
+				Models/Gist.swift,
+				Models/SharedItem.swift,
+			);
 			publicHeaders = (
 				Shared.h,
 			);
@@ -167,6 +170,15 @@
 				App/Constants/AppContants.swift,
 			);
 			target = 0B432CAB2D27400500A5105D /* GistaShare */;
+		};
+		0BFC9A952D399B2200B8DEBE /* Exceptions for "Shared" folder in "Gista" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Models/Article.swift,
+				Models/Gist.swift,
+				Models/SharedItem.swift,
+			);
+			target = 0B432C2D2D2729B300A5105D /* Gista */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -202,6 +214,7 @@
 		0B432CC42D27431B00A5105D /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				0BFC9A952D399B2200B8DEBE /* Exceptions for "Shared" folder in "Gista" target */,
 				0B432CDD2D27431B00A5105D /* Exceptions for "Shared" folder in "Shared" target */,
 			);
 			path = Shared;
@@ -324,7 +337,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				0B432CB52D27400500A5105D /* PBXTargetDependency */,
+				0BFC9A992D39A36A00B8DEBE /* PBXTargetDependency */,
 				0B432CD72D27431B00A5105D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -397,7 +410,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				0B432CEB2D27433A00A5105D /* PBXTargetDependency */,
+				0BFC9A9B2D39A4E300B8DEBE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0B432CAD2D27400500A5105D /* GistaShare */,
@@ -614,11 +627,6 @@
 			target = 0B432C2D2D2729B300A5105D /* Gista */;
 			targetProxy = 0B432C4D2D2729B600A5105D /* PBXContainerItemProxy */;
 		};
-		0B432CB52D27400500A5105D /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 0B432CAB2D27400500A5105D /* GistaShare */;
-			targetProxy = 0B432CB42D27400500A5105D /* PBXContainerItemProxy */;
-		};
 		0B432CCF2D27431B00A5105D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 0B432CC22D27431B00A5105D /* Shared */;
@@ -639,10 +647,15 @@
 			target = 0B432CC22D27431B00A5105D /* Shared */;
 			targetProxy = 0B432CE52D27432F00A5105D /* PBXContainerItemProxy */;
 		};
-		0B432CEB2D27433A00A5105D /* PBXTargetDependency */ = {
+		0BFC9A992D39A36A00B8DEBE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0B432CAB2D27400500A5105D /* GistaShare */;
+			targetProxy = 0BFC9A982D39A36A00B8DEBE /* PBXContainerItemProxy */;
+		};
+		0BFC9A9B2D39A4E300B8DEBE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 0B432CC22D27431B00A5105D /* Shared */;
-			targetProxy = 0B432CEA2D27433A00A5105D /* PBXContainerItemProxy */;
+			targetProxy = 0BFC9A9A2D39A4E300B8DEBE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -674,6 +687,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Voqa.io.Gista;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -707,6 +721,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Voqa.io.Gista;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

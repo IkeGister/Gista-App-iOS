@@ -6,78 +6,7 @@
 //
 
 import SwiftUI
-
-#if DEBUG
-// Preview Data
-extension Article {
-    static let previews: [Article] = [
-        Article(
-            id: UUID(),
-            title: "SwiftUI Best Practices for 2024",
-            url: URL(string: "https://example.com/swiftui")!,
-            dateAdded: Date().addingTimeInterval(-3600),
-            duration: 845
-        ),
-        Article(
-            id: UUID(),
-            title: "The Future of iOS Development",
-            url: URL(string: "https://example.com/ios")!,
-            dateAdded: Date().addingTimeInterval(-7200),
-            duration: 1256
-        ),
-        Article(
-            id: UUID(),
-            title: "Understanding Swift Concurrency",
-            url: URL(string: "https://example.com/swift")!,
-            dateAdded: Date().addingTimeInterval(-86400),
-            duration: 923
-        )
-    ]
-}
-
-struct Gist: Identifiable {
-    let id: UUID
-    let name: String
-    let itemCount: Int
-    let color: Color
-}
-
-extension Gist {
-    static let previews: [Gist] = [
-        Gist(id: UUID(), name: "Tech Articles", itemCount: 12, color: .blue),
-        Gist(id: UUID(), name: "Business", itemCount: 8, color: .green),
-        Gist(id: UUID(), name: "Science", itemCount: 5, color: .purple),
-        Gist(id: UUID(), name: "Favorites", itemCount: 3, color: .orange)
-    ]
-}
-
-// Preview Provider
-struct LibraryView_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            NavigationStack {
-                LibraryView(
-                    articles: Article.previews,
-                    gists: Gist.previews
-                )
-            }
-            .environmentObject(NavigationManager())
-            .previewDisplayName("Dark Mode")
-            .preferredColorScheme(.dark)
-            
-            NavigationStack {
-                LibraryView(
-                    articles: Article.previews,
-                    gists: Gist.previews
-                )
-            }
-            .environmentObject(NavigationManager())
-            .previewDisplayName("Light Mode")
-            .preferredColorScheme(.light)
-        }
-    }
-}
-#endif
+import Shared
 
 struct LibraryView: View {
     @EnvironmentObject private var navigationManager: NavigationManager
@@ -178,6 +107,65 @@ struct LibraryView: View {
         .navigationTitle("Your Library")
     }
 }
+
+#if DEBUG
+// Preview Data
+extension Article {
+    static let previews: [Article] = [
+        Article(
+            id: UUID(),
+            title: "SwiftUI Best Practices for 2024",
+            url: URL(string: "https://example.com/swiftui")!,
+            dateAdded: Date().addingTimeInterval(-3600),
+            duration: 845
+        ),
+        Article(
+            id: UUID(),
+            title: "The Future of iOS Development",
+            url: URL(string: "https://example.com/ios")!,
+            dateAdded: Date().addingTimeInterval(-7200),
+            duration: 1256
+        ),
+        Article(
+            id: UUID(),
+            title: "Understanding Swift Concurrency",
+            url: URL(string: "https://example.com/swift")!,
+            dateAdded: Date().addingTimeInterval(-86400),
+            duration: 923
+        )
+    ]
+}
+
+
+// Preview Provider
+struct LibraryView_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            NavigationStack {
+                LibraryView(
+                    articles: Article.previews,
+                    gists: Gist.previews
+                )
+            }
+            .environmentObject(NavigationManager())
+            .previewDisplayName("Dark Mode")
+            .preferredColorScheme(.dark)
+            
+            NavigationStack {
+                LibraryView(
+                    articles: Article.previews,
+                    gists: Gist.previews
+                )
+            }
+            .environmentObject(NavigationManager())
+            .previewDisplayName("Light Mode")
+            .preferredColorScheme(.light)
+        }
+    }
+}
+#endif
+
+
 
 struct GistCardView: View {
     @EnvironmentObject private var navigationManager: NavigationManager

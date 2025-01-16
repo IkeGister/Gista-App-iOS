@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Shared
 
 struct PlaybackView: View {
     let articleId: UUID
@@ -188,13 +189,20 @@ struct ArticleInfoView: View {
     }
 }
 
-// Article Model (Move to Models folder later)
-struct Article: Identifiable {
-    let id: UUID
-    let title: String
-    let url: URL
-    let dateAdded: Date
-    let duration: Int // in seconds
+// Optional: Add preview data
+public extension Article {
+    static let preview: [Article] = [
+        Article(
+            title: "SwiftUI Best Practices",
+            url: URL(string: "https://example.com/swiftui")!,
+            duration: 300
+        ),
+        Article(
+            title: "iOS Development Tips",
+            url: URL(string: "https://example.com/ios-tips")!,
+            duration: 480
+        )
+    ]
 }
 
 // Preview
