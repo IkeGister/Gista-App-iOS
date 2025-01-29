@@ -1,31 +1,36 @@
 # Firebase API Documentation
 
 ## Project Structure
-Project Root/
+Gista-CrewAI/
 │
 ├── functions/
 │   │   ├── src/
 │   │   │   ├── auth/
 │   │   │   │   └── userManagement.js
-│   │   │   ├── gists/
-│   │   │   │   └── gistManagement.js
-│   │   │   ├── links/
-│   │   │   │   └── linkManagement.js
-│   │   │   ├── index.js
-│   │   │   └── service-account.json
-│   │   ├── package.json
-│   │   └── .eslintrc.js
-│   ├── Firebase/
-│   │   └── config/
-│   │       ├── firebase_config.py
-│   │       └── test_firebase.py
-│   ├── .env
-│   ├── .gitignore
-│   └── firebase.json
+│   │   ├── categories/
+│   │   │   └── categoriesManagement.js
+│   │   ├── gists/
+│   │   │   └── gistManagement.js
+│   │   ├── links/
+│   │   │   └── linkManagement.js
+│   │   ├── index.js
+│   │   └── service-account.json
+│   ├── utilities/
+│   │   ├── defaultCategories.js
+│   │   └── initCategories.js
+│   ├── package.json
+│   └── .eslintrc.js
 │
-└── utils/
-    ├── __init__.py
-    └── firebase_utils.py
+├── Firebase/
+│   ├── APIs/
+│   │   └── API-Documentation.md
+│   └── config/
+│       ├── firebase_config.py
+│       └── test_firebase.py
+│
+├── .env
+├── .gitignore
+└── firebase.json
 
 ## Overview
 This document outlines the APIs for the Gista application, including authentication, gist management, link management, and Firebase services integration. The APIs are built using Firebase Cloud Functions and follow RESTful principles.
@@ -259,6 +264,87 @@ This document outlines the APIs for the Gista application, including authenticat
     - **200**: Returns array of gists
     - **404**: User not found
     - **500**: Error fetching gists
+
+### 4. Categories API (`/categories`)
+
+#### GET /categories
+- **Description**: Retrieve all categories
+- **Responses**:
+    - **200**: Returns array of categories and count
+        ```json
+        {
+          "categories": [{
+            "_id": "cat001",
+            "name": "Business",
+            "slug": "business",
+            "tags": ["finance", "economics", "startups"]
+          }],
+          "count": 1
+        }
+        ```
+    - **500**: Error fetching categories
+
+#### GET /categories/:slug
+- **Description**: Get category by slug
+- **Parameters**:
+    - `slug`: Category's URL-friendly name
+- **Responses**:
+    - **200**: Returns category object
+    - **404**: Category not found
+    - **500**: Error fetching category
+
+#### POST /categories/add
+- **Description**: Create a new category with auto-incrementing ID
+- **Request Body**:
+    ```json
+    {
+      "name": "New Category",
+      "tags": ["tag1", "tag2", "tag3"]
+    }
+    ```
+- **Responses**:
+    - **201**: Category created successfully
+        ```json
+        {
+          "message": "Category added successfully",
+          "category": {
+            "_id": "cat016",
+            "name": "New Category",
+            "slug": "new-category",
+            "tags": ["tag1", "tag2", "tag3"]
+          }
+        }
+        ```
+    - **400**: Missing required fields or duplicate slug
+    - **500**: Error creating category
+
+#### PUT /categories/update/:id
+- **Description**: Update category name and/or tags
+- **Parameters**:
+    - `id`: Category's unique identifier (e.g., cat001)
+- **Request Body**:
+    ```json
+    {
+      "name": "Updated Name",  // Optional
+      "tags": ["new", "tags"]  // Optional
+    }
+    ```
+- **Responses**:
+    - **200**: Category updated successfully
+        ```json
+        {
+          "message": "Category updated successfully",
+          "category": {
+            "_id": "cat001",
+            "name": "Updated Name",
+            "slug": "updated-name",
+            "tags": ["new", "tags"]
+          }
+        }
+        ```
+    - **400**: No fields to update or duplicate slug
+    - **404**: Category not found
+    - **500**: Error updating category
 
 ## Security
 - Firebase Authentication for user management

@@ -66,8 +66,8 @@ struct LibraryView: View {
             // Main Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Gists Section
-                    Section(header: SectionHeaderView(title: "Your Gists")) {
+                    // Categories Section
+                    Section(header: SectionHeaderView(title: "Categories")) {
                         ScrollView(.horizontal, showsIndicators: false) {
                             LazyHStack(spacing: 16) {
                                 ForEach(gists) { gist in
@@ -78,8 +78,8 @@ struct LibraryView: View {
                         }
                     }
                     
-                    // All Items Section
-                    Section(header: SectionHeaderView(title: "All Items")) {
+                    // Your Gists Section
+                    Section(header: SectionHeaderView(title: "Your Gists")) {
                         LazyVStack(spacing: 16) {
                             ForEach(articles) { article in
                                 ArticleRowView(article: article)

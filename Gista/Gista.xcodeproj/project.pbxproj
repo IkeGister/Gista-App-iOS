@@ -158,6 +158,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Models/Article.swift,
+				Models/Categories.swift,
 				Models/Gist.swift,
 				Models/SharedItem.swift,
 			);
@@ -177,6 +178,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Models/Article.swift,
+				Models/Categories.swift,
 				Models/Gist.swift,
 				Models/SharedItem.swift,
 			);

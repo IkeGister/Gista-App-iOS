@@ -18,6 +18,10 @@ protocol GistaServiceProtocol {
     func createGist(userId: String, gist: GistRequest) async throws -> Gist
     func updateGistStatus(userId: String, gistId: String, status: GistStatus) async throws -> Bool
     func fetchGists(userId: String) async throws -> [Gist]
+    func fetchCategories() async throws -> [Category]
+    func fetchCategory(slug: String) async throws -> Category
+    func createCategory(name: String, tags: [String]) async throws -> Category
+    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> Category
 }
 
 // MARK: - Errors
@@ -172,6 +176,23 @@ extension GistaService {
         let endpoint = Endpoint.fetchGists(userId: userId)
         return try await performRequest(endpoint)
     }
+    
+    func fetchCategories() async throws -> [Category] {
+        let response: CategoriesResponse = try await performRequest(.fetchCategories)
+        return response.categories
+    }
+    
+    func fetchCategory(slug: String) async throws -> Category {
+        return try await performRequest(.fetchCategory(slug: slug))
+    }
+    
+    func createCategory(name: String, tags: [String]) async throws -> Category {
+        return try await performRequest(.createCategory(name: name, tags: tags))
+    }
+    
+    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> Category {
+        return try await performRequest(.updateCategory(id: id, name: name, tags: tags))
+    }
 }
 
 // MARK: - Network Request
@@ -276,6 +297,10 @@ private extension GistaService {
         case createGist(userId: String, gist: GistRequest)
         case updateGistStatus(userId: String, gistId: String, status: GistStatus)
         case fetchGists(userId: String)
+        case fetchCategories
+        case fetchCategory(slug: String)
+        case createCategory(name: String, tags: [String])
+        case updateCategory(id: String, name: String?, tags: [String]?)
         
         var path: String {
             switch self {
@@ -295,16 +320,24 @@ private extension GistaService {
                 return "/gists/update/\(userId)/\(gistId)"
             case let .fetchGists(userId):
                 return "/gists/\(userId)"
+            case .fetchCategories:
+                return "/categories"
+            case let .fetchCategory(slug):
+                return "/categories/\(slug)"
+            case .createCategory:
+                return "/categories/add"
+            case let .updateCategory(id, _, _):
+                return "/categories/update/\(id)"
             }
         }
         
         var method: HTTPMethod {
             switch self {
-            case .createUser, .storeLink, .createGist:
+            case .createUser, .storeLink, .createGist, .createCategory:
                 return .post
-            case .updateUser, .updateLinkGistStatus, .updateGistStatus:
+            case .updateUser, .updateLinkGistStatus, .updateGistStatus, .updateCategory:
                 return .put
-            case .fetchLinks, .fetchGists:
+            case .fetchLinks, .fetchGists, .fetchCategories, .fetchCategory:
                 return .get
             }
         }
@@ -334,6 +367,12 @@ private extension GistaService {
                 return gist
             case let .updateGistStatus(_, _, status):
                 return status
+            case .fetchCategories, .fetchCategory:
+                return nil
+            case let .createCategory(name, tags):
+                return CategoryRequest(name: name, tags: tags)
+            case let .updateCategory(id, name, tags):
+                return CategoryRequest(name: name, tags: tags)
             case .fetchLinks, .fetchGists:
                 return nil
             }

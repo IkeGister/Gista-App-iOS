@@ -420,4 +420,28 @@ final class GistaServiceTests {
             #expect(Bool(true), "Successfully caught GistaError")
         }
     }
+    
+    // MARK: - Category Management Tests
+    /// Tests category fetching functionality
+    @Test
+    func testFetchCategories() async throws {
+        setUp()
+        defer { tearDown() }
+        
+        // Arrange
+        let mockCategories = CategoriesResponse(
+            categories: [
+                Category(id: "cat001", name: "Business", slug: "business", tags: ["finance", "economics"])
+            ],
+            count: 1
+        )
+        mockSession.mockData = try JSONEncoder().encode(mockCategories)
+        
+        // Act
+        let result = try await service.fetchCategories()
+        
+        // Assert
+        #expect(result.count == 1)
+        #expect(result.first?.name == "Business")
+    }
 }
