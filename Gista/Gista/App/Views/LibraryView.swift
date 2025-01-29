@@ -173,9 +173,9 @@ struct GistCardView: View {
     
     var body: some View {
         VStack(alignment: .leading) {
-            Text(gist.name)
+            Text(gist.title)
                 .font(.headline)
-            Text("\(gist.itemCount) items")
+            Text("\(gist.segments.count) items")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }

@@ -14,6 +14,7 @@
 		0B432CE32D27432F00A5105D /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; };
 		0B432CE42D27432F00A5105D /* Shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0B432CE82D27433A00A5105D /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; };
+		0B54D6BE2D4AA8FE00757F77 /* API-Documentation.md in Resources */ = {isa = PBXBuildFile; fileRef = 0B54D6BD2D4AA8FE00757F77 /* API-Documentation.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -128,6 +129,7 @@
 		0B432CAC2D27400500A5105D /* GistaShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GistaShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		0B432CC32D27431B00A5105D /* Shared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Shared.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0B432CCC2D27431B00A5105D /* SharedTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SharedTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B54D6BD2D4AA8FE00757F77 /* API-Documentation.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "API-Documentation.md"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -288,6 +290,7 @@
 				0B432CD22D27431B00A5105D /* SharedTests */,
 				0B432CE22D27432F00A5105D /* Frameworks */,
 				0B432C2F2D2729B300A5105D /* Products */,
+				0B54D6BD2D4AA8FE00757F77 /* API-Documentation.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -531,6 +534,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0B54D6BE2D4AA8FE00757F77 /* API-Documentation.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
