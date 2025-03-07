@@ -93,7 +93,7 @@ public extension Gist {
             segments: [
                 GistSegment(duration: 60, title: "Intro", audioUrl: "https://example.com/audio1.mp3")
             ],
-            status: GistStatus(isDonePlaying: false, isNowPlaying: false, playbackTime: 0),
+            status: GistStatus(inProduction: false, productionStatus: "Reviewing Content"),
             color: .blue
         ),
         Gist(
@@ -106,7 +106,7 @@ public extension Gist {
             segments: [
                 GistSegment(duration: 90, title: "Market Update", audioUrl: "https://example.com/audio2.mp3")
             ],
-            status: GistStatus(isDonePlaying: false, isNowPlaying: false, playbackTime: 0),
+            status: GistStatus(inProduction: false, productionStatus: "Reviewing Content"),
             color: .green
         )
     ]
@@ -117,29 +117,35 @@ public struct GistSegment: Codable {
     public let duration: Int
     public let title: String
     public let audioUrl: String
+    public let segmentIndex: Int?
     
-    public init(duration: Int, title: String, audioUrl: String) {
+    public init(duration: Int, title: String, audioUrl: String, segmentIndex: Int? = nil) {
         self.duration = duration
         self.title = title
         self.audioUrl = audioUrl
+        self.segmentIndex = segmentIndex
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case duration = "playback_duration"
+        case title = "segment_title"
+        case audioUrl = "segment_audioUrl"
+        case segmentIndex = "segment_index"
     }
 }
 
 public struct GistStatus: Codable {
-    public let isDonePlaying: Bool
-    public let isNowPlaying: Bool
-    public let playbackTime: Int
+    public let inProduction: Bool
+    public let productionStatus: String
     
-    public init(isDonePlaying: Bool, isNowPlaying: Bool, playbackTime: Int) {
-        self.isDonePlaying = isDonePlaying
-        self.isNowPlaying = isNowPlaying
-        self.playbackTime = playbackTime
+    public init(inProduction: Bool, productionStatus: String) {
+        self.inProduction = inProduction
+        self.productionStatus = productionStatus
     }
     
     enum CodingKeys: String, CodingKey {
-        case isDonePlaying = "is_done_playing"
-        case isNowPlaying = "is_now_playing"
-        case playbackTime = "playback_time"
+        case inProduction = "inProduction"
+        case productionStatus = "production_status"
     }
 }
 

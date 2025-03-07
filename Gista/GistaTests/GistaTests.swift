@@ -98,15 +98,20 @@ enum TestDataFactory {
                 GistSegment(
                     duration: 60,
                     title: "Test Segment",
-                    audioUrl: "https://example.com/audio.mp3"
+                    audioUrl: "https://example.com/audio.mp3",
+                    segmentIndex: 0
                 )
             ],
             status: GistStatus(
-                isDonePlaying: false,
-                isNowPlaying: false,
-                playbackTime: 0
+                inProduction: false,
+                productionStatus: "Reviewing Content"
             )
         )
+    }
+    
+    /// Creates a mock delete response
+    static func createMockDeleteResponse(id: String) -> DeleteResponse {
+        return DeleteResponse(message: "\(id) deleted successfully")
     }
 }
 
@@ -290,16 +295,17 @@ final class GistaServiceTests {
         mockSession.mockData = try JSONEncoder().encode(true)
         
         let status = GistStatus(
-            isDonePlaying: true,
-            isNowPlaying: false,
-            playbackTime: 120
+            inProduction: true,
+            productionStatus: "In Production"
         )
         
         // Act: Attempt to update status
         let result = try await service.updateGistStatus(
             userId: testUserId,
             gistId: "gist123",
-            status: status
+            status: status,
+            isPlayed: true,
+            ratings: 4
         )
         
         // Assert: Verify update was successful
@@ -339,12 +345,12 @@ final class GistaServiceTests {
         
         // Arrange: Set up temporary failure then success
         var attemptCount = 0
-        mockSession.mockError = GistaError.serverError("Temporary error")
         
-        // Override mock data method to succeed on second attempt
-        class RetryMockSession: MockURLSession {
+        // Create a custom URLSessionProtocol implementation for retry testing
+        class RetryMockSession: URLSessionProtocol {
             var attemptCount = 0
-            override func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+            
+            func data(for request: URLRequest) async throws -> (Data, URLResponse) {
                 attemptCount += 1
                 if attemptCount == 1 {
                     throw GistaError.serverError("Temporary error")
@@ -443,5 +449,68 @@ final class GistaServiceTests {
         // Assert
         #expect(result.count == 1)
         #expect(result.first?.name == "Business")
+    }
+    
+    /// Tests user deletion functionality
+    @Test
+    func testDeleteUser() async throws {
+        setUp()
+        defer { tearDown() }
+        
+        // Arrange
+        let userId = "user123"
+        let mockResponse = TestDataFactory.createMockDeleteResponse(id: userId)
+        mockSession.mockData = try JSONEncoder().encode(mockResponse)
+        
+        // Act
+        let result = try await service.deleteUser(userId: userId)
+        
+        // Assert
+        #expect(result == true, "User should be deleted successfully")
+    }
+    
+    /// Tests gist deletion functionality
+    @Test
+    func testDeleteGist() async throws {
+        setUp()
+        defer { tearDown() }
+        
+        // Arrange
+        let gistId = "gist123"
+        let mockResponse = TestDataFactory.createMockDeleteResponse(id: gistId)
+        mockSession.mockData = try JSONEncoder().encode(mockResponse)
+        
+        // Act
+        let result = try await service.deleteGist(userId: testUserId, gistId: gistId)
+        
+        // Assert
+        #expect(result == true, "Gist should be deleted successfully")
+    }
+    
+    /// Tests updated gist status functionality
+    @Test
+    func testUpdateGistStatusWithNewFormat() async throws {
+        setUp()
+        defer { tearDown() }
+        
+        // Arrange
+        mockSession.mockData = try JSONEncoder().encode(true)
+        
+        let status = GistStatus(
+            inProduction: true,
+            productionStatus: "In Production"
+        )
+        
+        // Act
+        let result = try await service.updateGistStatus(
+            userId: testUserId,
+            gistId: "gist123",
+            status: status,
+            isPlayed: true,
+            ratings: 4
+        )
+        
+        // Assert
+        #expect(result == true, "Status update should be successful")
     }
 }

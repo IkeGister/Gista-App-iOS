@@ -12,11 +12,13 @@ import Shared
 protocol GistaServiceProtocol {
     func createUser(email: String, password: String, username: String) async throws -> User
     func updateUser(username: String, email: String) async throws -> Bool
+    func deleteUser(userId: String) async throws -> Bool
     func storeArticle(userId: String, article: Article) async throws -> Article
     func updateArticleGistStatus(userId: String, articleId: String, gistId: String, imageUrl: String, title: String) async throws -> Article
     func fetchArticles(userId: String) async throws -> [Article]
     func createGist(userId: String, gist: GistRequest) async throws -> Gist
-    func updateGistStatus(userId: String, gistId: String, status: GistStatus) async throws -> Bool
+    func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool?, ratings: Int?) async throws -> Bool
+    func deleteGist(userId: String, gistId: String) async throws -> Bool
     func fetchGists(userId: String) async throws -> [Gist]
     func fetchCategories() async throws -> [Category]
     func fetchCategory(slug: String) async throws -> Category
@@ -133,6 +135,12 @@ extension GistaService {
         return try await performRequest(endpoint)
     }
     
+    func deleteUser(userId: String) async throws -> Bool {
+        let endpoint = Endpoint.deleteUser(userId: userId)
+        let response: DeleteResponse = try await performRequest(endpoint)
+        return response.message.contains("deleted successfully")
+    }
+    
     func storeArticle(userId: String, article: Article) async throws -> Article {
         let endpoint = Endpoint.storeLink(
             userId: userId,
@@ -167,9 +175,15 @@ extension GistaService {
         return try await performRequest(endpoint)
     }
     
-    func updateGistStatus(userId: String, gistId: String, status: GistStatus) async throws -> Bool {
-        let endpoint = Endpoint.updateGistStatus(userId: userId, gistId: gistId, status: status)
+    func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) async throws -> Bool {
+        let endpoint = Endpoint.updateGistStatus(userId: userId, gistId: gistId, status: status, isPlayed: isPlayed, ratings: ratings)
         return try await performRequest(endpoint)
+    }
+    
+    func deleteGist(userId: String, gistId: String) async throws -> Bool {
+        let endpoint = Endpoint.deleteGist(userId: userId, gistId: gistId)
+        let response: DeleteResponse = try await performRequest(endpoint)
+        return response.message.contains("deleted successfully")
     }
     
     func fetchGists(userId: String) async throws -> [Gist] {
@@ -291,11 +305,13 @@ private extension GistaService {
     enum Endpoint {
         case createUser(email: String, password: String, username: String)
         case updateUser(username: String, email: String)
+        case deleteUser(userId: String)
         case storeLink(userId: String, category: String, url: String, title: String)
         case updateLinkGistStatus(userId: String, linkId: String, gistId: String, imageUrl: String, title: String)
         case fetchLinks(userId: String)
         case createGist(userId: String, gist: GistRequest)
-        case updateGistStatus(userId: String, gistId: String, status: GistStatus)
+        case updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool?, ratings: Int?)
+        case deleteGist(userId: String, gistId: String)
         case fetchGists(userId: String)
         case fetchCategories
         case fetchCategory(slug: String)
@@ -308,6 +324,8 @@ private extension GistaService {
                 return "/auth/create-user"
             case .updateUser:
                 return "/auth/update-user"
+            case let .deleteUser(userId):
+                return "/auth/delete_user/\(userId)"
             case .storeLink:
                 return "/links/store"
             case let .updateLinkGistStatus(userId, linkId, _, _, _):
@@ -316,8 +334,10 @@ private extension GistaService {
                 return "/links/\(userId)"
             case let .createGist(userId, _):
                 return "/gists/add/\(userId)"
-            case let .updateGistStatus(userId, gistId, _):
+            case let .updateGistStatus(userId, gistId, _, _, _):
                 return "/gists/update/\(userId)/\(gistId)"
+            case let .deleteGist(userId, gistId):
+                return "/gists/delete/\(userId)/\(gistId)"
             case let .fetchGists(userId):
                 return "/gists/\(userId)"
             case .fetchCategories:
@@ -339,6 +359,8 @@ private extension GistaService {
                 return .put
             case .fetchLinks, .fetchGists, .fetchCategories, .fetchCategory:
                 return .get
+            case .deleteUser, .deleteGist:
+                return .delete
             }
         }
         
@@ -348,6 +370,8 @@ private extension GistaService {
                 return ["email": email, "password": password, "username": username]
             case let .updateUser(username, email):
                 return ["username": username, "email": email]
+            case .deleteUser:
+                return nil // DELETE requests typically don't have a body
             case let .storeLink(userId, category, url, title):
                 return ArticleRequest(
                     userId: userId,
@@ -365,16 +389,31 @@ private extension GistaService {
                 ]
             case let .createGist(_, gist):
                 return gist
-            case let .updateGistStatus(_, _, status):
-                return status
-            case .fetchCategories, .fetchCategory:
+            case let .updateGistStatus(_, _, status, isPlayed, ratings):
+                var body: [String: Any] = [
+                    "status": [
+                        "inProduction": status.inProduction,
+                        "production_status": status.productionStatus
+                    ]
+                ]
+                
+                if let isPlayed = isPlayed {
+                    body["is_played"] = isPlayed
+                }
+                
+                if let ratings = ratings {
+                    body["ratings"] = ratings
+                }
+                
+                return body as? Encodable
+            case .deleteGist:
+                return nil // DELETE requests typically don't have a body
+            case .fetchCategories, .fetchCategory, .fetchLinks, .fetchGists:
                 return nil
             case let .createCategory(name, tags):
                 return CategoryRequest(name: name, tags: tags)
-            case let .updateCategory(id, name, tags):
+            case let .updateCategory(_, name, tags):
                 return CategoryRequest(name: name, tags: tags)
-            case .fetchLinks, .fetchGists:
-                return nil
             }
         }
         
@@ -389,5 +428,10 @@ private extension GistaService {
         case put = "PUT"
         case delete = "DELETE"
     }
+}
+
+// MARK: - Additional Models
+struct DeleteResponse: Codable {
+    let message: String
 }
 
