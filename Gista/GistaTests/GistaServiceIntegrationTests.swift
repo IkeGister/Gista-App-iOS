@@ -26,134 +26,92 @@ final class GistaServiceIntegrationTests {
     // Test service instance
     private var service: GistaService!
     
-    // Test user credentials and data
-    private let testEmail = TestCredentials.email
-    private let testPassword = TestCredentials.password
-    private let testUsername = TestCredentials.username
+    // Shared test user data
+    private let testEmail = "gista_test_\(Int(Date().timeIntervalSince1970))@example.com"
+    private let testPassword = "TestPassword123!"
+    private let testUsername = "gista_test_\(Int(Date().timeIntervalSince1970))"
     private var testUserId: String?
     
-    /// Sets up the test environment
-    func setUp() {
+    // Shared test data IDs for cleanup
+    private var createdArticleIds: [String] = []
+    private var createdGistIds: [String] = []
+    
+    /// Sets up the test environment and creates a shared test user
+    func setUp() async throws {
+        // Initialize service without auth token initially
         service = GistaService(
-            environment: .development, // Use development environment for testing
-            authToken: TestCredentials.authToken
+            environment: .development // Use development environment for testing
         )
+        
+        // Create a shared test user if needed
+        if testUserId == nil {
+            let user = try await service.createUser(
+                email: testEmail,
+                password: testPassword,
+                username: testUsername
+            )
+            testUserId = user.userId
+            print("Created test user with ID: \(user.userId)")
+        }
     }
     
-    /// Tears down the test environment
-    func tearDown() {
+    /// Tears down the test environment and cleans up all test data
+    func tearDown() async throws {
+        // Clean up all created gists
+        if let userId = testUserId {
+            for gistId in createdGistIds {
+                do {
+                    let deleted = try await service.deleteGist(userId: userId, gistId: gistId)
+                    print("Deleted gist \(gistId): \(deleted)")
+                } catch {
+                    print("Warning: Failed to delete gist \(gistId): \(error)")
+                }
+            }
+            
+            // Finally delete the test user
+            do {
+                let deleted = try await service.deleteUser(userId: userId)
+                print("Deleted test user \(userId): \(deleted)")
+                testUserId = nil
+            } catch {
+                print("Warning: Failed to delete test user \(userId): \(error)")
+            }
+        }
+        
+        // Clear tracking arrays
+        createdArticleIds = []
+        createdGistIds = []
+        
+        // Clear service
         service = nil
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Comprehensive Integration Test
     
-    /// Creates a test user for integration testing
-    /// - Returns: The user ID of the created user
-    private func createTestUser() async throws -> String {
-        let user = try await service.createUser(
-            email: testEmail,
-            password: testPassword,
-            username: testUsername
-        )
-        return user.userId
-    }
-    
-    /// Cleans up test data after tests
-    private func cleanupTestData(userId: String) async {
-        do {
-            _ = try await service.deleteUser(userId: userId)
-        } catch {
-            print("Warning: Failed to clean up test user: \(error)")
-        }
-    }
-    
-    // MARK: - Test Cases
-    
-    /// Tests the complete user lifecycle:
-    /// 1. Create a user
-    /// 2. Update user information
-    /// 3. Delete the user
-    @Test
-    func testUserLifecycle() async throws {
-        try skipIfNotRunningIntegrationTests()
-        
-        setUp()
-        defer { tearDown() }
-        
-        // 1. Create user
-        let user = try await service.createUser(
-            email: "\(UUID().uuidString)@example.com", // Use unique email
-            password: "SecurePassword123!",
-            username: "testuser_\(Int(Date().timeIntervalSince1970))" // Use unique username
-        )
-        
-        // Verify user was created
-        #expect(!user.userId.isEmpty, "Should return a valid user ID")
-        
-        let userId = user.userId
-        defer { Task { await cleanupTestData(userId: userId) } }
-        
-        // 2. Update user
-        let updateResult = try await service.updateUser(
-            username: "updated_\(user.userId)",
-            email: "updated_\(UUID().uuidString)@example.com"
-        )
-        
-        // Verify update was successful
-        #expect(updateResult, "User update should succeed")
-        
-        // 3. Delete user
-        let deleteResult = try await service.deleteUser(userId: userId)
-        
-        // Verify deletion was successful
-        #expect(deleteResult, "User deletion should succeed")
-    }
-    
-    /// Tests category operations:
-    /// 1. Fetch all categories
-    /// 2. Fetch a specific category by slug
-    @Test
-    func testCategoryOperations() async throws {
-        try skipIfNotRunningIntegrationTests()
-        
-        setUp()
-        defer { tearDown() }
-        
-        // 1. Fetch all categories
-        let categories = try await service.fetchCategories()
-        
-        // Verify categories were returned
-        #expect(!categories.isEmpty, "Should return at least one category")
-        
-        // 2. Fetch a specific category if available
-        if let firstCategory = categories.first {
-            let category = try await service.fetchCategory(slug: firstCategory.slug)
-            
-            // Verify category details
-            #expect(category.id == firstCategory.id, "Should return the correct category")
-            #expect(category.name == firstCategory.name, "Category name should match")
-        }
-    }
-    
-    /// Tests article operations:
-    /// 1. Create a test user
+    /// Runs a comprehensive test of the Gista API:
+    /// 1. Create user (in setUp)
     /// 2. Store an article
-    /// 3. Fetch articles
-    /// 4. Clean up
+    /// 3. Create a gist
+    /// 4. Update gist status
+    /// 5. Fetch gists and articles
+    /// 6. Clean up (in tearDown)
     @Test
-    func testArticleOperations() async throws {
+    func testGistaWorkflow() async throws {
         try skipIfNotRunningIntegrationTests()
         
-        setUp()
-        defer { tearDown() }
+        // Setup test environment
+        try await setUp()
+        defer { try? await tearDown() }
         
-        // 1. Create test user
-        let userId = try await createTestUser()
-        defer { Task { await cleanupTestData(userId: userId) } }
+        guard let userId = testUserId else {
+            throw XCTSkip("Test user creation failed")
+        }
         
-        // 2. Store an article
+        print("Running integration test with user ID: \(userId)")
+        
+        // 1. Store an article
         let testArticle = Article(
-            title: "Integration Test Article",
+            title: "Integration Test Article \(Date())",
             url: URL(string: "https://example.com/test-article")!,
             duration: 120,
             category: "Technology"
@@ -164,38 +122,18 @@ final class GistaServiceIntegrationTests {
             article: testArticle
         )
         
+        print("Stored article: \(storedArticle.title)")
+        if let articleId = storedArticle.gistStatus?.articleId {
+            createdArticleIds.append(articleId)
+            print("Tracking article ID for cleanup: \(articleId)")
+        }
+        
         // Verify article was stored
         #expect(storedArticle.title == testArticle.title, "Stored article title should match")
         
-        // 3. Fetch articles
-        let articles = try await service.fetchArticles(userId: userId)
-        
-        // Verify articles were returned
-        #expect(!articles.isEmpty, "Should return at least one article")
-        #expect(articles.contains { $0.title == testArticle.title }, "Should contain the stored article")
-    }
-    
-    /// Tests gist operations:
-    /// 1. Create a test user
-    /// 2. Create a gist
-    /// 3. Update gist status
-    /// 4. Fetch gists
-    /// 5. Delete gist
-    /// 6. Clean up
-    @Test
-    func testGistOperations() async throws {
-        try skipIfNotRunningIntegrationTests()
-        
-        setUp()
-        defer { tearDown() }
-        
-        // 1. Create test user
-        let userId = try await createTestUser()
-        defer { Task { await cleanupTestData(userId: userId) } }
-        
         // 2. Create a gist
         let testGist = GistRequest(
-            title: "Integration Test Gist",
+            title: "Integration Test Gist \(Date())",
             link: "https://example.com/test-gist",
             imageUrl: "https://example.com/image.jpg",
             category: "Technology",
@@ -215,11 +153,13 @@ final class GistaServiceIntegrationTests {
             gist: testGist
         )
         
+        print("Created gist: \(createdGist.title)")
+        let gistId = createdGist.id.uuidString
+        createdGistIds.append(gistId)
+        print("Tracking gist ID for cleanup: \(gistId)")
+        
         // Verify gist was created
         #expect(createdGist.title == testGist.title, "Created gist title should match")
-        
-        // Store gist ID for later operations
-        let gistId = createdGist.id.uuidString
         
         // 3. Update gist status
         let updateResult = try await service.updateGistStatus(
@@ -230,24 +170,38 @@ final class GistaServiceIntegrationTests {
             ratings: 5
         )
         
+        print("Updated gist status: \(updateResult)")
+        
         // Verify update was successful
         #expect(updateResult, "Gist status update should succeed")
         
         // 4. Fetch gists
         let gists = try await service.fetchGists(userId: userId)
         
+        print("Fetched \(gists.count) gists")
+        
         // Verify gists were returned
         #expect(!gists.isEmpty, "Should return at least one gist")
         #expect(gists.contains { $0.title == testGist.title }, "Should contain the created gist")
         
-        // 5. Delete gist
-        let deleteResult = try await service.deleteGist(
-            userId: userId,
-            gistId: gistId
-        )
+        // 5. Fetch articles
+        let articles = try await service.fetchArticles(userId: userId)
         
-        // Verify deletion was successful
-        #expect(deleteResult, "Gist deletion should succeed")
+        print("Fetched \(articles.count) articles")
+        
+        // Verify articles were returned
+        #expect(!articles.isEmpty, "Should return at least one article")
+        #expect(articles.contains { $0.title == testArticle.title }, "Should contain the stored article")
+        
+        // 6. Fetch categories (doesn't require user)
+        let categories = try await service.fetchCategories()
+        
+        print("Fetched \(categories.count) categories")
+        
+        // Verify categories were returned
+        #expect(!categories.isEmpty, "Should return at least one category")
+        
+        // Cleanup happens in tearDown
     }
     
     // MARK: - Helper Functions

@@ -11,6 +11,10 @@ import UserNotifications
 @main
 struct GistaApp: App {
     @StateObject private var sharedContentService = SharedContentService.shared
+    @StateObject private var navigationManager = NavigationManager()
+    
+    // Set this to true to start the app in test mode
+    private let startInTestMode = true
     
     init() {
         // Request notification permissions
@@ -21,12 +25,19 @@ struct GistaApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(sharedContentService)
-                .preferredColorScheme(.dark)
-                .onAppear {
-                    sharedContentService.checkForSharedContent()
-                }
+            if startInTestMode {
+                // Start with the test view
+                GistaServiceTestView()
+            } else {
+                // Start with the normal app
+                ContentView()
+                    .environmentObject(sharedContentService)
+                    .environmentObject(navigationManager)
+                    .preferredColorScheme(.dark)
+                    .onAppear {
+                        sharedContentService.checkForSharedContent()
+                    }
+            }
         }
     }
 }

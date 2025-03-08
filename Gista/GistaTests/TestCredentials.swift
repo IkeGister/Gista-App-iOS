@@ -28,8 +28,8 @@ enum TestCredentials {
         ProcessInfo.processInfo.environment["TEST_USERNAME"] ?? "testuser"
     }
     
-    /// Auth token for authenticated requests - replace with a real token or use environment variables
-    static var authToken: String {
-        ProcessInfo.processInfo.environment["TEST_AUTH_TOKEN"] ?? ""
+    /// Auth token for authenticated requests - only needed for certain operations
+    static var authToken: String? {
+        ProcessInfo.processInfo.environment["TEST_AUTH_TOKEN"]
     }
 } 

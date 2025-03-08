@@ -24,9 +24,9 @@ public struct Gist: Identifiable, Codable {
     public let status: GistStatus
     public let users: Int
     public let gistColor: GistColor
+    public let gistId: String?
     
     enum CodingKeys: String, CodingKey {
-        case id
         case title
         case category
         case dateCreated = "date_created"
@@ -41,6 +41,8 @@ public struct Gist: Identifiable, Codable {
         case status
         case users
         case gistColor = "color"
+        case gistId = "gistId"
+        case id
     }
     
     public init(id: UUID = UUID(),
@@ -57,7 +59,8 @@ public struct Gist: Identifiable, Codable {
                 segments: [GistSegment],
                 status: GistStatus,
                 users: Int = 0,
-                color: Color = .blue) {
+                color: Color = .blue,
+                gistId: String? = nil) {
         self.id = id
         self.title = title
         self.category = category
@@ -73,6 +76,51 @@ public struct Gist: Identifiable, Codable {
         self.status = status
         self.users = users
         self.gistColor = GistColor(color, name: category.lowercased())
+        self.gistId = gistId
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Try to decode id, but if it's missing, create a new UUID
+        if let idString = try? container.decodeIfPresent(String.self, forKey: .id) {
+            self.id = UUID(uuidString: idString) ?? UUID()
+        } else {
+            self.id = UUID()
+        }
+        
+        // Try to decode gistId
+        self.gistId = try container.decodeIfPresent(String.self, forKey: .gistId)
+        
+        // Decode the rest of the fields
+        self.title = try container.decode(String.self, forKey: .title)
+        self.category = try container.decode(String.self, forKey: .category)
+        
+        // Try to decode dateCreated, but use current date if missing
+        if let dateString = try? container.decode(String.self, forKey: .dateCreated),
+           let date = ISO8601DateFormatter().date(from: dateString) {
+            self.dateCreated = date
+        } else {
+            self.dateCreated = Date()
+        }
+        
+        self.imageUrl = try container.decode(String.self, forKey: .imageUrl)
+        self.isPlayed = try container.decode(Bool.self, forKey: .isPlayed)
+        self.isPublished = try container.decode(Bool.self, forKey: .isPublished)
+        self.link = try container.decode(String.self, forKey: .link)
+        self.playbackDuration = try container.decode(Int.self, forKey: .playbackDuration)
+        self.publisher = try container.decode(String.self, forKey: .publisher)
+        self.ratings = try container.decode(Int.self, forKey: .ratings)
+        self.segments = try container.decode([GistSegment].self, forKey: .segments)
+        self.status = try container.decode(GistStatus.self, forKey: .status)
+        self.users = try container.decode(Int.self, forKey: .users)
+        
+        // Try to decode gistColor, but use a default if missing
+        if let gistColor = try? container.decodeIfPresent(GistColor.self, forKey: .gistColor) {
+            self.gistColor = gistColor
+        } else {
+            self.gistColor = GistColor(.blue, name: self.category.lowercased())
+        }
     }
     
     public var color: Color {
@@ -127,10 +175,28 @@ public struct GistSegment: Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case duration = "playback_duration"
-        case title = "segment_title"
-        case audioUrl = "segment_audioUrl"
-        case segmentIndex = "segment_index"
+        case duration
+        case title
+        case audioUrl = "audioUrl"
+        case segmentIndex = "index"
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Try to decode duration as Int, but if it's a String, convert it
+        if let durationInt = try? container.decode(Int.self, forKey: .duration) {
+            self.duration = durationInt
+        } else if let durationString = try? container.decode(String.self, forKey: .duration),
+                  let durationInt = Int(durationString) {
+            self.duration = durationInt
+        } else {
+            self.duration = 0
+        }
+        
+        self.title = try container.decode(String.self, forKey: .title)
+        self.audioUrl = try container.decode(String.self, forKey: .audioUrl)
+        self.segmentIndex = try container.decodeIfPresent(Int.self, forKey: .segmentIndex)
     }
 }
 
@@ -144,7 +210,7 @@ public struct GistStatus: Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case inProduction = "inProduction"
+        case inProduction
         case productionStatus = "production_status"
     }
 }
@@ -195,6 +261,11 @@ public struct GistRequest: Codable {
     public let category: String
     public let segments: [GistSegment]
     public let playbackDuration: Int
+    public let linkId: String
+    public let gistId: String?
+    public let isFinished: Bool
+    public let playbackTime: Int
+    public let status: GistStatus
     
     public init(
         title: String,
@@ -202,7 +273,12 @@ public struct GistRequest: Codable {
         imageUrl: String,
         category: String,
         segments: [GistSegment],
-        playbackDuration: Int
+        playbackDuration: Int,
+        linkId: String,
+        gistId: String? = nil,
+        isFinished: Bool = false,
+        playbackTime: Int = 0,
+        status: GistStatus = GistStatus(inProduction: false, productionStatus: "Reviewing Content")
     ) {
         self.title = title
         self.link = link
@@ -210,12 +286,21 @@ public struct GistRequest: Codable {
         self.category = category
         self.segments = segments
         self.playbackDuration = playbackDuration
+        self.linkId = linkId
+        self.gistId = gistId
+        self.isFinished = isFinished
+        self.playbackTime = playbackTime
+        self.status = status
     }
     
     enum CodingKeys: String, CodingKey {
-        case title, link, category, segments
+        case title, link, category, segments, status
         case imageUrl = "image_url"
         case playbackDuration = "playback_duration"
+        case linkId = "link_id"
+        case gistId = "gist_id"
+        case isFinished
+        case playbackTime = "playback_time"
     }
 }
 
