@@ -88,49 +88,9 @@ enum GistaError: LocalizedError, Equatable {
     }
 }
 
-// MARK: - API Models
-struct User: Codable {
-    let userId: String
-    let message: String
-    
-    enum CodingKeys: String, CodingKey {
-        case userId = "user_id"
-        case message
-    }
-    
-    init(userId: String, message: String) {
-        self.userId = userId
-        self.message = message
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        // Decode userId, which should always be present
-        userId = try container.decode(String.self, forKey: .userId)
-        
-        // Try to decode message, but use a default if missing
-        if let decodedMessage = try? container.decode(String.self, forKey: .message) {
-            message = decodedMessage
-        } else {
-            message = "User operation completed"
-        }
-    }
-}
 
-struct UserRequest: Codable {
-    let userId: String
-    let email: String
-    let password: String
-    let username: String
-    
-    enum CodingKeys: String, CodingKey {
-        case userId = "user_id"
-        case email
-        case password
-        case username
-    }
-}
+
+
 
 // Custom struct for gist update requests
 struct GistUpdateRequest: Codable {
@@ -845,7 +805,7 @@ private extension GistaService {
                 // Use the UserRequest struct for proper serialization
                 // Generate a unique userId or leave it to the server
                 let uniqueId = "temp_\(UUID().uuidString)"
-                return UserRequest(userId: uniqueId, email: email, password: password, username: username)
+                return CreateUserRequest(userId: uniqueId, email: email, password: password, username: username)
             case let .updateUser(userId, username, email):
                 return ["user_id": userId, "username": username, "email": email]
             case .deleteUser:

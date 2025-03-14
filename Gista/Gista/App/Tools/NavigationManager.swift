@@ -58,6 +58,7 @@ class NavigationManager: ObservableObject {
 // Navigation View Modifier
 struct NavigationStackContainer: ViewModifier {
     @StateObject private var navigationManager = NavigationManager()
+    @StateObject private var onboardingViewModel = OnboardingViewModel()
     
     func body(content: Content) -> some View {
         NavigationStack(path: $navigationManager.navigationPath) {
@@ -67,7 +68,8 @@ struct NavigationStackContainer: ViewModifier {
                     case .library:
                         LibraryView()
                     case .onboarding:
-                        OnboardingView()
+                        OnboardingView.withOnboardingViewModel()
+                            .environmentObject(onboardingViewModel)
                     case .settings:
                         Settings()
                     case .userProfile:
@@ -84,6 +86,7 @@ struct NavigationStackContainer: ViewModifier {
                 }
         }
         .environmentObject(navigationManager)
+        .environmentObject(onboardingViewModel)
     }
 }
 
