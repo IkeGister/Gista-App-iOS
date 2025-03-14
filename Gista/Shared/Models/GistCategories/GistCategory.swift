@@ -1,13 +1,13 @@
 //
-//  Categories.swift
+//  GistCategory.swift
 //  Gista
 //
-//  Created by Tony Nlemadim on 1/29/25.
+//  Created by Tony Nlemadim on 3/14/25.
 //
 
 import Foundation
 
-public struct Category: Codable {
+public struct GistCategory: Codable {
     public let id: String
     public let name: String
     public let slug: String
@@ -19,10 +19,4 @@ public struct Category: Codable {
         case slug
         case tags
     }
-}
-
-// Response wrapper
-public struct CategoriesResponse: Codable {
-    public let categories: [Category]
-    public let count: Int
 }
