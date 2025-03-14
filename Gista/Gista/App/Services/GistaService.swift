@@ -13,17 +13,17 @@ protocol GistaServiceProtocol {
     func createUser(email: String, password: String, username: String) async throws -> User
     func updateUser(userId: String, username: String, email: String) async throws -> Bool
     func deleteUser(userId: String) async throws -> Bool
-    func storeArticle(userId: String, article: Article, autoCreateGist: Bool) async throws -> StoreArticleResponse
+    func storeArticle(userId: String, article: Article, autoCreateGist: Bool) async throws -> GistaServiceResponse
     func updateArticleGistStatus(userId: String, articleId: String, gistId: String, imageUrl: String, title: String) async throws -> Article
     func fetchArticles(userId: String) async throws -> [Article]
     func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool?, ratings: Int?) async throws -> Bool
     func updateGistProductionStatus(userId: String, gistId: String) async throws -> Bool
     func deleteGist(userId: String, gistId: String) async throws -> Bool
     func fetchGists(userId: String) async throws -> [Gist]
-    func fetchCategories() async throws -> [Category]
-    func fetchCategory(slug: String) async throws -> Category
-    func createCategory(name: String, tags: [String]) async throws -> Category
-    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> Category
+    func fetchCategories() async throws -> [GistCategory]
+    func fetchCategory(slug: String) async throws -> GistCategory
+    func createCategory(name: String, tags: [String]) async throws -> GistCategory
+    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> GistCategory
 }
 
 // MARK: - Errors
@@ -266,7 +266,7 @@ extension GistaService {
      * - Returns: The created article with appropriate gist status
      * - Throws: GistaError if there's an issue with the request or response
      */
-    func storeArticle(userId: String, article: Article, autoCreateGist: Bool = true) async throws -> StoreArticleResponse {
+    func storeArticle(userId: String, article: Article, autoCreateGist: Bool = true) async throws -> GistaServiceResponse {
         let endpoint = Endpoint.storeLink(
             userId: userId,
             category: article.category,
@@ -315,7 +315,7 @@ extension GistaService {
             }
             
             // Return a simple response object
-            return StoreArticleResponse(
+            return GistaServiceResponse(
                 success: true, 
                 message: message,
                 linkId: linkId,
@@ -342,7 +342,7 @@ extension GistaService {
             imageUrl: imageUrl,
             title: title
         )
-        let response: ArticleResponse = try await performRequest(endpoint)
+        let response: ArticleData = try await performRequest(endpoint)
         return Article(from: response)
     }
     
@@ -564,20 +564,20 @@ extension GistaService {
         }
     }
     
-    func fetchCategories() async throws -> [Category] {
-        let response: CategoriesResponse = try await performRequest(GistaService.Endpoint.fetchCategories)
+    func fetchCategories() async throws -> [GistCategory] {
+        let response: GistaServiceCategories = try await performRequest(GistaService.Endpoint.fetchCategories)
         return response.categories
     }
     
-    func fetchCategory(slug: String) async throws -> Category {
+    func fetchCategory(slug: String) async throws -> GistCategory {
         return try await performRequest(GistaService.Endpoint.fetchCategory(slug: slug))
     }
     
-    func createCategory(name: String, tags: [String]) async throws -> Category {
+    func createCategory(name: String, tags: [String]) async throws -> GistCategory {
         return try await performRequest(GistaService.Endpoint.createCategory(name: name, tags: tags))
     }
     
-    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> Category {
+    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> GistCategory {
         return try await performRequest(GistaService.Endpoint.updateCategory(id: id, name: name, tags: tags))
     }
 }
@@ -946,18 +946,6 @@ struct GistsResponse: Codable {
     }
 }
 
-// Add a new response struct for storeArticle
-struct StoreArticleResponse {
-    let success: Bool
-    let message: String
-    let linkId: String?
-    let gistId: String?
-    
-    init(success: Bool, message: String, linkId: String? = nil, gistId: String? = nil) {
-        self.success = success
-        self.message = message
-        self.linkId = linkId
-        self.gistId = gistId
-    }
-}
+
+
 

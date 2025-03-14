@@ -157,10 +157,14 @@
 		0B432CDD2D27431B00A5105D /* Exceptions for "Shared" folder in "Shared" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Models/Article.swift,
-				Models/Categories.swift,
-				Models/CategoryRequest.swift,
-				Models/Gist.swift,
+				Models/API/GistaServiceResponse.swift,
+				Models/Artilcle/Article.swift,
+				Models/Artilcle/ArticleData.swift,
+				Models/Artilcle/ArticleGistStatus.swift,
+				Models/GistCategories/CategoryRequest.swift,
+				Models/GistCategories/GistCategory.swift,
+				Models/Gists/Gist.swift,
+				Models/Gists/GistExtensions.swift,
 				Models/SharedItem.swift,
 			);
 			publicHeaders = (
@@ -178,10 +182,14 @@
 		0BFC9A952D399B2200B8DEBE /* Exceptions for "Shared" folder in "Gista" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Models/Article.swift,
-				Models/Categories.swift,
-				Models/CategoryRequest.swift,
-				Models/Gist.swift,
+				Models/API/GistaServiceResponse.swift,
+				Models/Artilcle/Article.swift,
+				Models/Artilcle/ArticleData.swift,
+				Models/Artilcle/ArticleGistStatus.swift,
+				Models/GistCategories/CategoryRequest.swift,
+				Models/GistCategories/GistCategory.swift,
+				Models/Gists/Gist.swift,
+				Models/Gists/GistExtensions.swift,
 				Models/SharedItem.swift,
 			);
 			target = 0B432C2D2D2729B300A5105D /* Gista */;

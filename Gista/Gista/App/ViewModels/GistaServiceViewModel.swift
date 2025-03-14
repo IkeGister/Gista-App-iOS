@@ -15,7 +15,7 @@ class GistaServiceViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var articles: [Article] = []
     @Published var gists: [Gist] = []
-    @Published var categories: [Category] = []
+    @Published var categories: [GistCategory] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var showError: Bool = false
@@ -260,8 +260,8 @@ class GistaServiceViewModel: ObservableObject {
         }
     }
     
-    func fetchCategory(slug: String) async -> Category? {
-        var category: Category?
+    func fetchCategory(slug: String) async -> GistCategory? {
+        var category: GistCategory?
         await executeTask { [weak self] in
             guard let self = self else { return nil }
             category = try await self.gistaService.fetchCategory(slug: slug)

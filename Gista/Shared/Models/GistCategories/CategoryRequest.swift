@@ -22,3 +22,9 @@ public struct CategoryRequest: Encodable {
         self.tags = tags
     }
 }
+
+// Response wrapper
+public struct GistaServiceCategories: Codable {
+    public let categories: [GistCategory]
+    public let count: Int
+}
