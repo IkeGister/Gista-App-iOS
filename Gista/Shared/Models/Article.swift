@@ -206,6 +206,73 @@ public struct ArticleGistStatus: Codable {
         case type = "link_type"
         case url
     }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Try to decode gistCreated directly
+        if let gistCreatedValue = try? container.decode(Bool.self, forKey: .gistCreated) {
+            gistCreated = gistCreatedValue
+        } else {
+            // Default to true if we can't decode it but we have other fields
+            // This handles the case where the API doesn't include gist_created field
+            // but we know it's true because we have a gist_id
+            gistCreated = true
+        }
+        
+        gistId = try container.decodeIfPresent(String.self, forKey: .gistId)
+        imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        
+        // For required fields, provide fallbacks if they're missing
+        if let id = try? container.decode(String.self, forKey: .articleId) {
+            articleId = id
+        } else {
+            articleId = UUID().uuidString
+            print("Warning: Missing articleId in ArticleGistStatus, using generated UUID")
+        }
+        
+        if let titleValue = try? container.decode(String.self, forKey: .title) {
+            title = titleValue
+        } else {
+            title = "Unknown Title"
+            print("Warning: Missing title in ArticleGistStatus, using default")
+        }
+        
+        if let typeValue = try? container.decode(String.self, forKey: .type) {
+            type = typeValue
+        } else {
+            type = "Web"
+            print("Warning: Missing type in ArticleGistStatus, using default")
+        }
+        
+        if let urlValue = try? container.decode(String.self, forKey: .url) {
+            url = urlValue
+        } else {
+            url = "https://example.com"
+            print("Warning: Missing url in ArticleGistStatus, using default")
+        }
+    }
+    
+    // Add a static method to create from a JSON object
+    static func from(json: [String: JSON]) -> ArticleGistStatus {
+        let gistCreated = json["gist_created"]?.boolValue ?? true
+        let gistId = json["gist_id"]?.stringValue
+        let imageUrl = json["image_url"]?.stringValue
+        let articleId = json["link_id"]?.stringValue ?? UUID().uuidString
+        let title = json["link_title"]?.stringValue ?? "Unknown Title"
+        let type = json["link_type"]?.stringValue ?? "Web"
+        let url = json["url"]?.stringValue ?? "https://example.com"
+        
+        return ArticleGistStatus(
+            gistCreated: gistCreated,
+            gistId: gistId,
+            imageUrl: imageUrl,
+            articleId: articleId,
+            title: title,
+            type: type,
+            url: url
+        )
+    }
 }
 
 // MARK: - API Models
@@ -238,20 +305,19 @@ struct ArticleResponse: Codable {
                 dateAdded = nil
             }
             
-            // Decode gistCreated - the issue is that the API returns a nested object
-            // with the same name as the property (gist_created contains a gist_created field)
+            // Get the raw value for gistCreated
             do {
-                // Try to decode the gist_created field directly
-                let nestedContainer = try container.nestedContainer(keyedBy: NestedCodingKeys.self, forKey: .gistCreated)
+                // Try to decode the gistCreated field as a nested object with proper types
+                let nestedContainer = try container.nestedContainer(keyedBy: GistCreatedKeys.self, forKey: .gistCreated)
                 
-                // Extract values from the nested container
-                let gistCreatedBool = try nestedContainer.decode(Bool.self, forKey: .gistCreated)
+                // Extract values with proper types
+                let gistCreatedBool = try nestedContainer.decodeIfPresent(Bool.self, forKey: .gistCreated) ?? false
                 let gistId = try nestedContainer.decodeIfPresent(String.self, forKey: .gistId)
                 let imageUrl = try nestedContainer.decodeIfPresent(String.self, forKey: .imageUrl)
-                let linkId = try nestedContainer.decode(String.self, forKey: .linkId)
-                let linkTitle = try nestedContainer.decode(String.self, forKey: .linkTitle)
-                let linkType = try nestedContainer.decode(String.self, forKey: .linkType)
-                let url = try nestedContainer.decode(String.self, forKey: .url)
+                let linkId = try nestedContainer.decodeIfPresent(String.self, forKey: .linkId) ?? UUID().uuidString
+                let linkTitle = try nestedContainer.decodeIfPresent(String.self, forKey: .linkTitle) ?? "Unknown Title"
+                let linkType = try nestedContainer.decodeIfPresent(String.self, forKey: .linkType) ?? "Web"
+                let url = try nestedContainer.decodeIfPresent(String.self, forKey: .url) ?? "https://example.com"
                 
                 // Create the ArticleGistStatus with the extracted values
                 gistCreated = ArticleGistStatus(
@@ -263,26 +329,59 @@ struct ArticleResponse: Codable {
                     type: linkType,
                     url: url
                 )
-                print("Successfully created gistCreated from nested container")
+                print("Successfully decoded gistCreated as nested object")
             } catch {
-                print("Error decoding gistCreated: \(error)")
+                print("Error decoding gistCreated as nested object: \(error)")
                 
-                // Create a fallback ArticleGistStatus with default values
-                gistCreated = ArticleGistStatus(
-                    gistCreated: false,
-                    gistId: nil,
-                    imageUrl: nil,
-                    articleId: UUID().uuidString,
-                    title: "Unknown Title",
-                    type: "Web",
-                    url: "https://example.com"
-                )
-                print("Created fallback gistCreated")
+                // Try to decode as a dictionary of AnyDecodable
+                do {
+                    if let gistCreatedDict = try? container.decode([String: AnyDecodable].self, forKey: .gistCreated) {
+                        // Extract values from the dictionary
+                        let gistCreatedBool = (gistCreatedDict["gist_created"]?.value as? Bool) ?? false
+                        let gistId = gistCreatedDict["gist_id"]?.value as? String
+                        let imageUrl = gistCreatedDict["image_url"]?.value as? String
+                        let linkId = (gistCreatedDict["link_id"]?.value as? String) ?? UUID().uuidString
+                        let linkTitle = (gistCreatedDict["link_title"]?.value as? String) ?? "Unknown Title"
+                        let linkType = (gistCreatedDict["link_type"]?.value as? String) ?? "Web"
+                        let url = (gistCreatedDict["url"]?.value as? String) ?? "https://example.com"
+                        
+                        // Create the ArticleGistStatus with the extracted values
+                        gistCreated = ArticleGistStatus(
+                            gistCreated: gistCreatedBool,
+                            gistId: gistId,
+                            imageUrl: imageUrl,
+                            articleId: linkId,
+                            title: linkTitle,
+                            type: linkType,
+                            url: url
+                        )
+                        print("Successfully created gistCreated from dictionary")
+                    } else {
+                        throw DecodingError.dataCorrupted(DecodingError.Context(
+                            codingPath: container.codingPath + [CodingKeys.gistCreated],
+                            debugDescription: "Failed to decode gistCreated as dictionary"
+                        ))
+                    }
+                } catch {
+                    print("Error decoding gistCreated as dictionary: \(error)")
+                    
+                    // Create a fallback ArticleGistStatus with default values
+                    gistCreated = ArticleGistStatus(
+                        gistCreated: false,
+                        gistId: nil,
+                        imageUrl: nil,
+                        articleId: UUID().uuidString,
+                        title: "Unknown Title",
+                        type: "Web",
+                        url: "https://example.com"
+                    )
+                    print("Created fallback gistCreated")
+                }
             }
         }
         
-        // Nested coding keys for the gist_created field
-        enum NestedCodingKeys: String, CodingKey {
+        // Define nested keys for gistCreated
+        enum GistCreatedKeys: String, CodingKey {
             case gistCreated = "gist_created"
             case gistId = "gist_id"
             case imageUrl = "image_url"
@@ -307,16 +406,24 @@ struct ArticlesResponse: Codable {
 public struct ArticleRequest: Codable {
     let userId: String
     let article: ArticleData
+    let autoCreateGist: Bool
     
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case article = "link"
+        case autoCreateGist = "auto_create_gist"
     }
     
     struct ArticleData: Codable {
         let category: String
         let url: String
         let title: String
+    }
+    
+    init(userId: String, article: ArticleData, autoCreateGist: Bool = true) {
+        self.userId = userId
+        self.article = article
+        self.autoCreateGist = autoCreateGist
     }
 }
 
@@ -349,20 +456,16 @@ extension Article {
     }
     
     // Convert to API Request
-    func toArticleRequest(userId: String) -> ArticleRequest {
+    func toArticleRequest(userId: String, autoCreateGist: Bool = true) -> ArticleRequest {
         ArticleRequest(
             userId: userId,
             article: ArticleRequest.ArticleData(
                 category: category,
                 url: url.absoluteString,
                 title: title
-            )
+            ),
+            autoCreateGist: autoCreateGist
         )
-    }
-    
-    // Helper to get the link ID
-    var linkId: String? {
-        return gistStatus?.articleId
     }
 }
 

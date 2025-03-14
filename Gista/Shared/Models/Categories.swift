@@ -22,7 +22,7 @@ public struct Category: Codable {
 }
 
 // Response wrapper
-struct CategoriesResponse: Codable {
-    let categories: [Category]
-    let count: Int
+public struct CategoriesResponse: Codable {
+    public let categories: [Category]
+    public let count: Int
 }

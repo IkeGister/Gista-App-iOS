@@ -14,7 +14,7 @@ struct GistaApp: App {
     @StateObject private var navigationManager = NavigationManager()
     
     // Set this to true to start the app in test mode
-    private let startInTestMode = true
+    private let startInTestMode = false
     
     init() {
         // Request notification permissions

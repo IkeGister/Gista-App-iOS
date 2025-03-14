@@ -113,19 +113,27 @@ class GistaServiceViewModel: ObservableObject {
     }
     
     // MARK: - Article Management
-    func storeArticle(article: Article) async {
+    func storeArticle(article: Article, autoCreateGist: Bool = true) async {
         await executeTask { [weak self] in
             guard let self = self, let userId = self._userId else {
                 throw GistaError.unauthorized
             }
-            let storedArticle = try await self.gistaService.storeArticle(
+            let response = try await self.gistaService.storeArticle(
                 userId: userId,
-                article: article
+                article: article,
+                autoCreateGist: autoCreateGist
             )
-            await MainActor.run {
-                self.articles.append(storedArticle)
+            
+            // Log the response
+            print("Store article response: success=\(response.success), message=\(response.message)")
+            if let linkId = response.linkId {
+                print("Link ID: \(linkId)")
             }
-            return "Article stored successfully"
+            if let gistId = response.gistId {
+                print("Gist ID: \(gistId)")
+            }
+            
+            return "Article stored successfully: \(response.message)"
         }
     }
     
@@ -165,24 +173,14 @@ class GistaServiceViewModel: ObservableObject {
     }
     
     // MARK: - Gist Management
-    func createGist(gist: GistRequest) async {
-        await executeTask { [weak self] in
-            guard let self = self, let userId = self._userId else {
-                throw GistaError.unauthorized
-            }
-            let createdGist = try await self.gistaService.createGist(userId: userId, gist: gist)
-            await MainActor.run {
-                self.gists.append(createdGist)
-            }
-            return "Gist created successfully"
-        }
-    }
-    
     func updateGistStatus(gistId: String, status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) async {
         await executeTask { [weak self] in
             guard let self = self, let userId = self._userId else {
                 throw GistaError.unauthorized
             }
+            
+            print("ViewModel: Updating gist with ID: \(gistId)")
+            
             let success = try await self.gistaService.updateGistStatus(
                 userId: userId,
                 gistId: gistId,
@@ -192,7 +190,10 @@ class GistaServiceViewModel: ObservableObject {
             )
             
             if success {
+                print("ViewModel: Gist updated successfully, fetching updated gists")
                 await self.fetchGists()
+            } else {
+                print("ViewModel: Failed to update gist")
             }
             
             return success ? "Gist updated successfully" : "Failed to update gist"

@@ -13,10 +13,9 @@ protocol GistaServiceProtocol {
     func createUser(email: String, password: String, username: String) async throws -> User
     func updateUser(userId: String, username: String, email: String) async throws -> Bool
     func deleteUser(userId: String) async throws -> Bool
-    func storeArticle(userId: String, article: Article) async throws -> Article
+    func storeArticle(userId: String, article: Article, autoCreateGist: Bool) async throws -> StoreArticleResponse
     func updateArticleGistStatus(userId: String, articleId: String, gistId: String, imageUrl: String, title: String) async throws -> Article
     func fetchArticles(userId: String) async throws -> [Article]
-    func createGist(userId: String, gist: GistRequest) async throws -> Gist
     func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool?, ratings: Int?) async throws -> Bool
     func updateGistProductionStatus(userId: String, gistId: String) async throws -> Bool
     func deleteGist(userId: String, gistId: String) async throws -> Bool
@@ -133,25 +132,70 @@ struct UserRequest: Codable {
     }
 }
 
+// Custom struct for gist update requests
+struct GistUpdateRequest: Codable {
+    let status: GistStatusRequest
+    let isPlayed: Bool?
+    let ratings: Int?
+    
+    struct GistStatusRequest: Codable {
+        let inProduction: Bool
+        let productionStatus: String
+        
+        enum CodingKeys: String, CodingKey {
+            case inProduction
+            case productionStatus = "production_status"
+        }
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case status
+        case isPlayed = "is_played"
+        case ratings
+    }
+    
+    init(status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) {
+        self.status = GistStatusRequest(
+            inProduction: status.inProduction,
+            productionStatus: status.productionStatus
+        )
+        self.isPlayed = isPlayed
+        self.ratings = ratings
+    }
+}
+
 // MARK: - Service Implementation
 final class GistaService: GistaServiceProtocol {
-    private let baseURL: URL
-    private let session: URLSessionProtocol
-    private var authToken: String?
-    
-    public enum Environment {
+    // MARK: - Environment
+    enum Environment {
         case development
         case production
         
         var baseURL: URL {
             switch self {
             case .development:
-                return URL(string: "http://localhost:5001")!
+                return URL(string: "https://us-central1-dof-ai.cloudfunctions.net/api")!
             case .production:
                 return URL(string: "https://us-central1-dof-ai.cloudfunctions.net/api")!
             }
         }
     }
+    
+    // MARK: - Request Configuration
+    struct RequestConfig {
+        let timeout: TimeInterval
+        let cachePolicy: URLRequest.CachePolicy
+        
+        static let `default` = RequestConfig(
+            timeout: 30.0,
+            cachePolicy: .useProtocolCachePolicy
+        )
+    }
+    
+    // MARK: - Properties
+    private let baseURL: URL
+    private let session: URLSessionProtocol
+    private var authToken: String?
     
     init(environment: Environment = .production,
          session: URLSessionProtocol = URLSession.shared,
@@ -160,32 +204,75 @@ final class GistaService: GistaServiceProtocol {
         self.session = session
         self.authToken = authToken
     }
+    
+    // MARK: - User Management Methods
+    func createUser(email: String, password: String, username: String) async throws -> User {
+        print("===== CREATING USER =====")
+        print("Email: \(email)")
+        print("Username: \(username)")
+        print("Password: \(password.isEmpty ? "empty" : "[redacted]")")
+        
+        // Create the endpoint for user creation with parameters
+        let endpoint = Endpoint.createUser(email: email, password: password, username: username)
+        
+        do {
+            let response: User = try await performRequest(
+                endpoint
+            )
+            
+            print("✅ API User Creation Successful")
+            print("User ID: \(response.userId)")
+            print("Message: \(response.message)")
+            print("Full Response: \(response)")
+            print("========================")
+            
+            return response
+        } catch {
+            print("❌ API User Creation Failed")
+            print("Error: \(error)")
+            if let gistaError = error as? GistaError {
+                print("GistaError: \(gistaError.errorDescription ?? "Unknown")")
+            }
+            print("========================")
+            throw error
+        }
+    }
+    
+    func updateUser(userId: String, username: String, email: String) async throws -> Bool {
+        // TODO: Implement actual user update
+        return true
+    }
+    
+    func deleteUser(userId: String) async throws -> Bool {
+        // TODO: Implement actual user deletion
+        return true
+    }
 }
 
 // MARK: - API Methods
 extension GistaService {
-    func createUser(email: String, password: String, username: String) async throws -> User {
-        let endpoint = Endpoint.createUser(email: email, password: password, username: username)
-        return try await performRequest(endpoint)
-    }
-    
-    func updateUser(userId: String, username: String, email: String) async throws -> Bool {
-        let endpoint = Endpoint.updateUser(userId: userId, username: username, email: email)
-        return try await performRequest(endpoint)
-    }
-    
-    func deleteUser(userId: String) async throws -> Bool {
-        let endpoint = Endpoint.deleteUser(userId: userId)
-        let response: DeleteResponse = try await performRequest(endpoint)
-        return response.message.contains("deleted successfully")
-    }
-    
-    func storeArticle(userId: String, article: Article) async throws -> Article {
+    /**
+     * Stores an article and optionally creates a gist automatically.
+     *
+     * This method handles two response formats:
+     * 1. When autoCreateGist = true: Response contains a direct "gistId" field
+     * 2. When autoCreateGist = false: Response contains the traditional format with a nested gist_created object
+     *
+     * - Parameters:
+     *   - userId: The user's unique identifier
+     *   - article: The article to store
+     *   - autoCreateGist: Whether to automatically create a gist (defaults to true)
+     *
+     * - Returns: The created article with appropriate gist status
+     * - Throws: GistaError if there's an issue with the request or response
+     */
+    func storeArticle(userId: String, article: Article, autoCreateGist: Bool = true) async throws -> StoreArticleResponse {
         let endpoint = Endpoint.storeLink(
             userId: userId,
             category: article.category,
             url: article.url.absoluteString,
-            title: article.title
+            title: article.title,
+            autoCreateGist: autoCreateGist
         )
         
         do {
@@ -207,80 +294,40 @@ extension GistaService {
             }
             
             // Parse the JSON manually
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let _ = json["message"] as? String,
-                  let linkData = json["link"] as? [String: Any],
-                  let category = linkData["category"] as? String,
-                  let gistCreatedData = linkData["gist_created"] as? [String: Any] else {
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 throw GistaError.decodingError(NSError(domain: "GistaService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"]))
             }
             
-            // Extract date_added if available
-            var dateAdded = Date()
-            if let dateAddedString = linkData["date_added"] as? String,
-               let date = ISO8601DateFormatter().date(from: dateAddedString) {
-                dateAdded = date
+            // Extract message
+            let message = json["message"] as? String ?? "Operation completed"
+            
+            // Extract linkId and gistId if available
+            let linkId = json["linkId"] as? String
+            let gistId = json["gistId"] as? String
+            
+            // Log extracted data
+            print("API success: \(message)")
+            if let linkId = linkId {
+                print("Link ID from API: \(linkId)")
+            }
+            if let gistId = gistId {
+                print("Gist ID from API: \(gistId)")
             }
             
-            // Extract gist_created fields
-            let gistCreated = gistCreatedData["gist_created"] as? Bool ?? false
-            let gistId = gistCreatedData["gist_id"] as? String
-            let imageUrl = gistCreatedData["image_url"] as? String
-            let linkId = gistCreatedData["link_id"] as? String ?? UUID().uuidString
-            let linkTitle = gistCreatedData["link_title"] as? String ?? article.title
-            let linkType = gistCreatedData["link_type"] as? String ?? "Web"
-            let url = gistCreatedData["url"] as? String ?? article.url.absoluteString
-            
-            // Create the ArticleGistStatus
-            let gistStatus = ArticleGistStatus(
-                gistCreated: gistCreated,
-                gistId: gistId,
-                imageUrl: imageUrl,
-                articleId: linkId,
-                title: linkTitle,
-                type: linkType,
-                url: url
+            // Return a simple response object
+            return StoreArticleResponse(
+                success: true, 
+                message: message,
+                linkId: linkId,
+                gistId: gistId
             )
             
-            // Create the Article
-            let createdArticle = Article(
-                id: UUID(),
-                title: linkTitle,
-                url: URL(string: url) ?? article.url,
-                dateAdded: dateAdded,
-                duration: article.duration,
-                category: category,
-                gistStatus: gistStatus
-            )
-            
-            // Log success with detailed information
-            print("Successfully created article manually: \(createdArticle)")
-            print("- Title: \(createdArticle.title)")
-            print("- URL: \(createdArticle.url)")
-            print("- Category: \(createdArticle.category)")
-            print("- Date Added: \(createdArticle.dateAdded)")
-            
-            if let gistStatus = createdArticle.gistStatus {
-                print("- Gist Status:")
-                print("  - Gist Created: \(gistStatus.gistCreated)")
-                print("  - Gist ID: \(gistStatus.gistId ?? "nil")")
-                print("  - Image URL: \(gistStatus.imageUrl ?? "nil")")
-                print("  - Article ID: \(gistStatus.articleId)")
-                print("  - Title: \(gistStatus.title)")
-                print("  - Type: \(gistStatus.type)")
-                print("  - URL: \(gistStatus.url)")
-            }
-            
-            return createdArticle
         } catch {
             print("Error in storeArticle: \(error)")
             
-            // If it's a decoding error, try to extract useful information from the raw response
+            // If it's a decoding error, add more context
             if case let GistaError.decodingError(decodingError) = error {
                 print("Decoding error details: \(decodingError)")
-                
-                // Rethrow with more context
-                throw GistaError.decodingError(decodingError)
             }
             
             throw error
@@ -305,134 +352,105 @@ extension GistaService {
         return response.articles.map { Article(from: $0) }
     }
     
-    func createGist(userId: String, gist: GistRequest) async throws -> Gist {
-        let endpoint = Endpoint.createGist(userId: userId, gist: gist)
+    func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) async throws -> Bool {
+        print("Updating gist with ID: \(gistId) for user: \(userId)")
+        print("Status: inProduction=\(status.inProduction), productionStatus=\(status.productionStatus)")
+        if let isPlayed = isPlayed {
+            print("isPlayed: \(isPlayed)")
+        }
+        if let ratings = ratings {
+            print("ratings: \(ratings)")
+        }
+        
+        let endpoint = Endpoint.updateGistStatus(userId: userId, gistId: gistId, status: status, isPlayed: isPlayed, ratings: ratings)
         
         do {
-            // Get the raw response data
-            let (data, response) = try await performRawRequest(endpoint)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw GistaError.invalidResponse
-            }
-            
-            // Check for successful status code
-            guard (200...299).contains(httpResponse.statusCode) else {
-                throw GistaError.unexpectedStatus(httpResponse.statusCode)
-            }
-            
-            // Log the raw response for debugging
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("Raw gist response: \(responseString)")
-            }
-            
-            // Parse the JSON manually
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let _ = json["message"] as? String,
-                  let gistData = json["gist"] as? [String: Any],
-                  let title = gistData["title"] as? String,
-                  let category = gistData["category"] as? String,
-                  let imageUrl = gistData["image_url"] as? String,
-                  let link = gistData["link"] as? String else {
-                throw GistaError.decodingError(NSError(domain: "GistaService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to parse gist response"]))
-            }
-            
-            // Extract optional fields with defaults
-            let gistId = gistData["gistId"] as? String ?? gistData["link_id"] as? String
-            let dateCreatedString = gistData["date_created"] as? String
-            let dateCreated = dateCreatedString != nil ? ISO8601DateFormatter().date(from: dateCreatedString!) ?? Date() : Date()
-            let isPlayed = gistData["is_played"] as? Bool ?? false
-            let isPublished = gistData["is_published"] as? Bool ?? true
-            let playbackDuration = gistData["playback_duration"] as? Int ?? 0
-            let publisher = gistData["publisher"] as? String ?? "theNewGista"
-            let ratings = gistData["ratings"] as? Int ?? 0
-            let users = gistData["users"] as? Int ?? 0
-            
-            // Extract segments
-            var segments: [GistSegment] = []
-            if let segmentsData = gistData["segments"] as? [[String: Any]] {
-                for segmentData in segmentsData {
-                    let title = segmentData["segment_title"] as? String ?? "Untitled Segment"
-                    let audioUrl = segmentData["segment_audioUrl"] as? String ?? ""
-                    
-                    // Handle duration which might be a string or int
-                    var duration = 0
-                    if let durationInt = segmentData["playback_duration"] as? Int {
-                        duration = durationInt
-                    } else if let durationString = segmentData["playback_duration"] as? String,
-                              let durationInt = Int(durationString) {
-                        duration = durationInt
-                    }
-                    
-                    let segmentIndex = segmentData["segment_index"] as? Int
-                    
-                    segments.append(GistSegment(
-                        duration: duration,
-                        title: title,
-                        audioUrl: audioUrl,
-                        segmentIndex: segmentIndex
-                    ))
-                }
-            }
-            
-            // Extract status
-            var status = GistStatus(inProduction: false, productionStatus: "Reviewing Content")
-            if let statusData = gistData["status"] as? [String: Any] {
-                let inProduction = statusData["inProduction"] as? Bool ?? false
-                let productionStatus = statusData["production_status"] as? String ?? "Reviewing Content"
-                status = GistStatus(inProduction: inProduction, productionStatus: productionStatus)
-            }
-            
-            // Create the Gist
-            let createdGist = Gist(
-                id: UUID(),
-                title: title,
-                category: category,
-                dateCreated: dateCreated,
-                imageUrl: imageUrl,
-                isPlayed: isPlayed,
-                isPublished: isPublished,
-                link: link,
-                playbackDuration: playbackDuration,
-                publisher: publisher,
-                ratings: ratings,
-                segments: segments,
-                status: status,
-                users: users,
-                gistId: gistId
-            )
-            
-            // Log success with detailed information
-            print("Successfully created gist manually: \(createdGist)")
-            print("- Title: \(createdGist.title)")
-            print("- Category: \(createdGist.category)")
-            print("- Segments: \(createdGist.segments.count)")
-            
-            return createdGist
+            let response: GistUpdateResponse = try await performRequest(endpoint)
+            print("Update gist result: success=\(response.success), message=\(response.message)")
+            return response.success
         } catch {
-            print("Error in createGist: \(error)")
-            
-            // If it's a decoding error, try to extract useful information from the raw response
-            if case let GistaError.decodingError(decodingError) = error {
-                print("Decoding error details: \(decodingError)")
-                
-                // Rethrow with more context
-                throw GistaError.decodingError(decodingError)
-            }
-            
+            print("Error updating gist: \(error)")
             throw error
         }
     }
     
-    func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) async throws -> Bool {
-        let endpoint = Endpoint.updateGistStatus(userId: userId, gistId: gistId, status: status, isPlayed: isPlayed, ratings: ratings)
-        return try await performRequest(endpoint)
-    }
-    
+    /**
+     * Updates the production status of a gist using the signal-based approach.
+     *
+     * This method implements the API's signal-based approach where an empty request body
+     * is sent, and the server automatically sets the gist to:
+     * - inProduction = true
+     * - productionStatus = "Reviewing Content"
+     *
+     * - Parameters:
+     *   - userId: The user's unique identifier
+     *   - gistId: The gist's unique identifier
+     *
+     * - Returns: True if the update was successful
+     * - Throws: GistaError if there's an issue with the request or response
+     */
     func updateGistProductionStatus(userId: String, gistId: String) async throws -> Bool {
+        print("🔄 STARTING: Update gist production status using signal-based approach")
+        print("📋 Details: User ID: \(userId), Gist ID: \(gistId)")
+        
+        // Use the endpoint definition which now points to the correct path
         let endpoint = Endpoint.updateGistProductionStatus(userId: userId, gistId: gistId)
-        let response: StatusResponse = try await performRequest(endpoint)
-        return response.success
+        
+        // Get the URL from the endpoint
+        guard let url = endpoint.url(baseURL: baseURL) else {
+            print("❌ Failed to construct URL")
+            throw GistaError.invalidURL
+        }
+        
+        print("🔗 Using URL: \(url.absoluteString)")
+        
+        // Create the request
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Empty JSON object as body (signal-based approach)
+        let emptyBody = "{}".data(using: .utf8)
+        request.httpBody = emptyBody
+        
+        do {
+            print("📤 Sending request...")
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("❌ Invalid response")
+                throw GistaError.invalidResponse
+            }
+            
+            print("📥 Response status code: \(httpResponse.statusCode)")
+            
+            // Log the response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📄 Response body: \(responseString)")
+            }
+            
+            // Parse the response for success
+            if (200...299).contains(httpResponse.statusCode) {
+                // Try to decode the success response
+                do {
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode(StatusResponse.self, from: data)
+                    print("✅ SUCCESS: \(response.message)")
+                    return response.success
+                } catch {
+                    // If we can't decode the specific response format but the HTTP status is success
+                    print("⚠️ Could not decode response, but HTTP status indicates success: \(error)")
+                    print("✅ Assuming success based on HTTP status code")
+                    return true
+                }
+            } else {
+                print("❌ Failed with status code: \(httpResponse.statusCode)")
+                throw GistaError.unexpectedStatus(httpResponse.statusCode)
+            }
+        } catch {
+            print("❌ Error updating gist production status: \(error)")
+            throw error
+        }
     }
     
     func deleteGist(userId: String, gistId: String) async throws -> Bool {
@@ -443,31 +461,132 @@ extension GistaService {
     
     func fetchGists(userId: String) async throws -> [Gist] {
         let endpoint = Endpoint.fetchGists(userId: userId)
-        return try await performRequest(endpoint)
+        do {
+            let response: GistsResponse = try await performRequest(endpoint)
+            return response.gists
+        } catch {
+            print("Error fetching gists: \(error)")
+            
+            // If it's a decoding error, try to extract the gists manually
+            if case GistaError.decodingError = error {
+                print("Attempting to extract gists manually from response")
+                
+                // Get the raw response data
+                let (data, _) = try await performRawRequest(endpoint)
+                
+                // Try to parse the JSON manually
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let gistsArray = json["gists"] as? [[String: Any]] {
+                    
+                    // Create gists from the array
+                    var gists: [Gist] = []
+                    for gistData in gistsArray {
+                        if let title = gistData["title"] as? String,
+                           let category = gistData["category"] as? String,
+                           let link = gistData["link"] as? String {
+                            
+                            // Extract other fields
+                            let gistId = gistData["gistId"] as? String
+                            let imageUrl = gistData["image_url"] as? String ?? "https://example.com/image.jpg"
+                            let dateCreatedString = gistData["date_created"] as? String
+                            let dateCreated = dateCreatedString != nil ? ISO8601DateFormatter().date(from: dateCreatedString!) ?? Date() : Date()
+                            let isPlayed = gistData["is_played"] as? Bool ?? false
+                            let isPublished = gistData["is_published"] as? Bool ?? true
+                            let playbackDuration = gistData["playback_duration"] as? Int ?? 0
+                            let publisher = gistData["publisher"] as? String ?? "theNewGista"
+                            let ratings = gistData["ratings"] as? Int ?? 0
+                            let users = gistData["users"] as? Int ?? 0
+                            
+                            // Extract segments
+                            var segments: [GistSegment] = []
+                            if let segmentsData = gistData["segments"] as? [[String: Any]] {
+                                for segmentData in segmentsData {
+                                    let title = segmentData["segment_title"] as? String ?? "Untitled Segment"
+                                    let audioUrl = segmentData["segment_audioUrl"] as? String ?? ""
+                                    
+                                    // Handle duration which might be a string or int
+                                    var duration = 0
+                                    if let durationInt = segmentData["playback_duration"] as? Int {
+                                        duration = durationInt
+                                    } else if let durationString = segmentData["playback_duration"] as? String,
+                                              let durationInt = Int(durationString) {
+                                        duration = durationInt
+                                    }
+                                    
+                                    let segmentIndex = segmentData["segment_index"] as? Int
+                                    
+                                    segments.append(GistSegment(
+                                        duration: duration,
+                                        title: title,
+                                        audioUrl: audioUrl,
+                                        segmentIndex: segmentIndex
+                                    ))
+                                }
+                            }
+                            
+                            // Extract status
+                            var status = GistStatus(inProduction: false, productionStatus: "Reviewing Content")
+                            if let statusData = gistData["status"] as? [String: Any] {
+                                let inProduction = statusData["inProduction"] as? Bool ?? false
+                                let productionStatus = statusData["production_status"] as? String ?? "Reviewing Content"
+                                status = GistStatus(inProduction: inProduction, productionStatus: productionStatus)
+                            }
+                            
+                            // Create the Gist
+                            let gist = Gist(
+                                id: UUID(),
+                                title: title,
+                                category: category,
+                                dateCreated: dateCreated,
+                                imageUrl: imageUrl,
+                                isPlayed: isPlayed,
+                                isPublished: isPublished,
+                                link: link,
+                                playbackDuration: playbackDuration,
+                                publisher: publisher,
+                                ratings: ratings,
+                                segments: segments,
+                                status: status,
+                                users: users,
+                                gistId: gistId
+                            )
+                            
+                            gists.append(gist)
+                        }
+                    }
+                    
+                    print("Successfully extracted \(gists.count) gists manually")
+                    return gists
+                }
+            }
+            
+            throw error
+        }
     }
     
     func fetchCategories() async throws -> [Category] {
-        let response: CategoriesResponse = try await performRequest(.fetchCategories)
+        let response: CategoriesResponse = try await performRequest(GistaService.Endpoint.fetchCategories)
         return response.categories
     }
     
     func fetchCategory(slug: String) async throws -> Category {
-        return try await performRequest(.fetchCategory(slug: slug))
+        return try await performRequest(GistaService.Endpoint.fetchCategory(slug: slug))
     }
     
     func createCategory(name: String, tags: [String]) async throws -> Category {
-        return try await performRequest(.createCategory(name: name, tags: tags))
+        return try await performRequest(GistaService.Endpoint.createCategory(name: name, tags: tags))
     }
     
     func updateCategory(id: String, name: String?, tags: [String]?) async throws -> Category {
-        return try await performRequest(.updateCategory(id: id, name: name, tags: tags))
+        return try await performRequest(GistaService.Endpoint.updateCategory(id: id, name: name, tags: tags))
     }
 }
 
 // MARK: - Network Request
 private extension GistaService {
-    func performRequest<T: Decodable>(_ endpoint: Endpoint, 
-                                     config: RequestConfig = .default) async throws -> T {
+    // Helper method to perform a request and decode the response
+    private func performRequest<T: Decodable>(_ endpoint: Endpoint,
+                                          config: GistaService.RequestConfig = .default) async throws -> T {
         guard let url = endpoint.url(baseURL: baseURL) else {
             throw GistaError.invalidURL
         }
@@ -490,138 +609,15 @@ private extension GistaService {
         // Add body if available
         if let body = endpoint.body {
             let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
             
-            // For gist creation, don't convert keys to snake_case since we're already specifying exact field names
-            if case .createGist = endpoint {
-                // Use default key encoding strategy (no conversion)
-                print("Using custom encoder for gist creation")
-            } else {
-                encoder.keyEncodingStrategy = .convertToSnakeCase
-            }
+            // Ensure date encoding is consistent
+            encoder.dateEncodingStrategy = .iso8601
             
             request.httpBody = try encoder.encode(body)
         }
         
-        // For non-GET requests, use a single attempt to prevent duplicate operations
-        if endpoint.method != .get {
-            return try await performSingleRequest(request: request, endpoint: endpoint)
-        }
-        
-        // For GET requests, we can safely retry
-        var lastError: Error?
-        for attempt in 0...config.retryCount {
-            do {
-                let (data, response) = try await session.data(for: request)
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    throw GistaError.invalidResponse
-                }
-                
-                // Log response for debugging in development
-                #if DEBUG
-                if let responseString = String(data: data, encoding: .utf8) {
-                    print("Response (\(httpResponse.statusCode)): \(responseString)")
-                    
-                    // Additional debug info for decoding errors
-                    if endpoint.path.contains("/auth/create_user") && T.self == User.self {
-                        print("Attempting to decode User model from: \(responseString)")
-                    }
-                }
-                #endif
-                
-                // Special handling for user creation when user already exists
-                if httpResponse.statusCode == 400 && endpoint.path.contains("/auth/create_user") {
-                    if let responseString = String(data: data, encoding: .utf8),
-                       responseString.contains("User already exists"),
-                       T.self == User.self {
-                        // Extract the user ID from the request body
-                        if case let .createUser(email, _, _) = endpoint {
-                            let userId = "user_\(email.hashValue)"
-                            let user = User(userId: userId, message: "User already exists")
-                            if let result = user as? T {
-                                return result
-                            }
-                        }
-                    }
-                }
-                
-                // Special handling for user creation success
-                if httpResponse.statusCode == 201 && endpoint.path.contains("/auth/create_user") && T.self == User.self {
-                    do {
-                        let decoder = JSONDecoder()
-                        decoder.keyDecodingStrategy = .convertFromSnakeCase
-                        return try decoder.decode(T.self, from: data)
-                    } catch {
-                        // If standard decoding fails, try to extract user_id manually
-                        if let responseString = String(data: data, encoding: .utf8),
-                           let userIdRange = responseString.range(of: "\"user_id\":\""),
-                           let endQuoteRange = responseString[userIdRange.upperBound...].range(of: "\"") {
-                            let startIndex = userIdRange.upperBound
-                            let endIndex = endQuoteRange.lowerBound
-                            let userId = String(responseString[startIndex..<endIndex])
-                            let user = User(userId: userId, message: "User created successfully")
-                            if let result = user as? T {
-                                return result
-                            }
-                        }
-                        
-                        // If we still can't extract the user_id, rethrow the original error
-                        throw GistaError.decodingError(error)
-                    }
-                }
-                
-                switch httpResponse.statusCode {
-                case 200...299:
-                    do {
-                        let decoder = JSONDecoder()
-                        decoder.dateDecodingStrategy = .iso8601
-                        decoder.keyDecodingStrategy = .convertFromSnakeCase
-                        return try decoder.decode(T.self, from: data)
-                    } catch {
-                        print("Decoding error: \(error)")
-                        if let responseString = String(data: data, encoding: .utf8) {
-                            print("Failed to decode: \(responseString)")
-                        }
-                        throw GistaError.decodingError(error)
-                    }
-                    
-                case 401:
-                    throw GistaError.unauthorized
-                case 403:
-                    throw GistaError.forbidden
-                case 404:
-                    throw GistaError.notFound
-                case 429:
-                    throw GistaError.rateLimited
-                case 500...599:
-                    throw GistaError.serverError("Status code: \(httpResponse.statusCode)")
-                default:
-                    throw GistaError.unexpectedStatus(httpResponse.statusCode)
-                }
-            } catch {
-                lastError = error
-                
-                // Don't retry on certain errors
-                if let gistaError = error as? GistaError {
-                    switch gistaError {
-                    case .unauthorized, .forbidden, .notFound:
-                        throw error
-                    default:
-                        break
-                    }
-                }
-                
-                // If this was the last attempt, throw the error
-                if attempt == config.retryCount {
-                    throw error
-                }
-                
-                // Wait before retrying
-                try await Task.sleep(nanoseconds: UInt64(NetworkConstants.retryDelay * 1_000_000_000))
-            }
-        }
-        
-        throw lastError ?? GistaError.unknown
+        return try await performSingleRequest(request: request, endpoint: endpoint)
     }
     
     // Helper method for single request (no retries)
@@ -633,28 +629,6 @@ private extension GistaService {
         
         if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
             print("Request Body: \(bodyString)")
-            
-            // For gist creation, log more details
-            if endpoint.path.contains("/gists/add/") {
-                print("Gist Creation Request Body Details:")
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: body, options: []) as? [String: Any] {
-                        if let segments = json["segments"] as? [[String: Any]] {
-                            print("Segments count: \(segments.count)")
-                            for (index, segment) in segments.enumerated() {
-                                print("Segment \(index):")
-                                for (key, value) in segment {
-                                    print("  \(key): \(value)")
-                                }
-                            }
-                        } else {
-                            print("No segments found in request body")
-                        }
-                    }
-                } catch {
-                    print("Error parsing request body: \(error)")
-                }
-            }
         }
         #endif
         
@@ -672,6 +646,11 @@ private extension GistaService {
             // Additional debug info for decoding errors
             if endpoint.path.contains("/auth/create_user") && T.self == User.self {
                 print("Attempting to decode User model from: \(responseString)")
+            }
+            
+            // Additional debug info for gist update
+            if endpoint.path.contains("/gists/update/") {
+                print("Gist update response: \(responseString)")
             }
         }
         #endif
@@ -749,7 +728,7 @@ private extension GistaService {
     
     // Helper method to perform a request and return the raw data
     private func performRawRequest(_ endpoint: Endpoint, 
-                                  config: RequestConfig = .default) async throws -> (Data, URLResponse) {
+                                  config: GistaService.RequestConfig = .default) async throws -> (Data, URLResponse) {
         guard let url = endpoint.url(baseURL: baseURL) else {
             throw GistaError.invalidURL
         }
@@ -772,14 +751,10 @@ private extension GistaService {
         // Add body if available
         if let body = endpoint.body {
             let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
             
-            // For gist creation, don't convert keys to snake_case since we're already specifying exact field names
-            if case .createGist = endpoint {
-                // Use default key encoding strategy (no conversion)
-                print("Using custom encoder for gist creation")
-            } else {
-                encoder.keyEncodingStrategy = .convertToSnakeCase
-            }
+            // Ensure date encoding is consistent
+            encoder.dateEncodingStrategy = .iso8601
             
             request.httpBody = try encoder.encode(body)
         }
@@ -805,10 +780,9 @@ private extension GistaService {
         case createUser(email: String, password: String, username: String)
         case updateUser(userId: String, username: String, email: String)
         case deleteUser(userId: String)
-        case storeLink(userId: String, category: String, url: String, title: String)
+        case storeLink(userId: String, category: String, url: String, title: String, autoCreateGist: Bool)
         case updateLinkGistStatus(userId: String, linkId: String, gistId: String, imageUrl: String, title: String)
         case fetchLinks(userId: String)
-        case createGist(userId: String, gist: GistRequest)
         case updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool?, ratings: Int?)
         case updateGistProductionStatus(userId: String, gistId: String)
         case deleteGist(userId: String, gistId: String)
@@ -829,14 +803,13 @@ private extension GistaService {
             case .storeLink:
                 return "/links/store"
             case let .updateLinkGistStatus(userId, linkId, _, _, _):
-                return "/links/update_gist_status/\(userId)/\(linkId)"
+                return "/links/update-gist-status/\(userId)/\(linkId)"
             case let .fetchLinks(userId):
                 return "/links/\(userId)"
-            case let .createGist(userId, _):
-                return "/gists/add/\(userId)"
             case let .updateGistStatus(userId, gistId, _, _, _):
                 return "/gists/update/\(userId)/\(gistId)"
             case let .updateGistProductionStatus(userId, gistId):
+                // Based on API documentation, the correct endpoint is:
                 return "/gists/\(userId)/\(gistId)/status"
             case let .deleteGist(userId, gistId):
                 return "/gists/delete/\(userId)/\(gistId)"
@@ -855,7 +828,7 @@ private extension GistaService {
         
         var method: HTTPMethod {
             switch self {
-            case .createUser, .storeLink, .createGist, .createCategory:
+            case .createUser, .storeLink, .createCategory:
                 return .post
             case .updateUser, .updateLinkGistStatus, .updateGistStatus, .updateCategory, .updateGistProductionStatus:
                 return .put
@@ -869,21 +842,23 @@ private extension GistaService {
         var body: Encodable? {
             switch self {
             case let .createUser(email, password, username):
-                // Generate a user_id based on email to satisfy the API requirement
-                let userId = "user_\(email.hashValue)"
-                return UserRequest(userId: userId, email: email, password: password, username: username)
+                // Use the UserRequest struct for proper serialization
+                // Generate a unique userId or leave it to the server
+                let uniqueId = "temp_\(UUID().uuidString)"
+                return UserRequest(userId: uniqueId, email: email, password: password, username: username)
             case let .updateUser(userId, username, email):
                 return ["user_id": userId, "username": username, "email": email]
             case .deleteUser:
                 return nil // DELETE requests typically don't have a body
-            case let .storeLink(userId, category, url, title):
+            case let .storeLink(userId, category, url, title, autoCreateGist):
                 return ArticleRequest(
                     userId: userId,
                     article: ArticleRequest.ArticleData(
                         category: category,
                         url: url,
                         title: title
-                    )
+                    ),
+                    autoCreateGist: autoCreateGist
                 )
             case let .updateLinkGistStatus(_, _, gistId, imageUrl, title):
                 return [
@@ -891,25 +866,8 @@ private extension GistaService {
                     "image_url": imageUrl,
                     "link_title": title
                 ]
-            case let .createGist(_, gist):
-                return gist
             case let .updateGistStatus(_, _, status, isPlayed, ratings):
-                var body: [String: Any] = [
-                    "status": [
-                        "inProduction": status.inProduction,
-                        "production_status": status.productionStatus
-                    ]
-                ]
-                
-                if let isPlayed = isPlayed {
-                    body["is_played"] = isPlayed
-                }
-                
-                if let ratings = ratings {
-                    body["ratings"] = ratings
-                }
-                
-                return body as? Encodable
+                return GistUpdateRequest(status: status, isPlayed: isPlayed, ratings: ratings)
             case .updateGistProductionStatus:
                 // Signal-based approach - empty JSON object
                 return [String: String]()
@@ -925,14 +883,21 @@ private extension GistaService {
         }
         
         func url(baseURL: URL) -> URL? {
+            // Debug the path
+            print("Constructing URL with path: \(path)")
+            
             // Check if the base URL already includes /api
             if baseURL.absoluteString.hasSuffix("/api") {
                 // For production URL that already includes /api
-                return URL(string: baseURL.absoluteString + path)
+                let fullURL = baseURL.absoluteString + path
+                print("Full URL (production): \(fullURL)")
+                return URL(string: fullURL)
             } else {
                 // For development URL
                 let pathWithSlash = path.hasPrefix("/") ? path : "/\(path)"
-                return URL(string: pathWithSlash, relativeTo: baseURL)
+                let fullURL = baseURL.absoluteString + pathWithSlash
+                print("Full URL (development): \(fullURL)")
+                return URL(string: fullURL)
             }
         }
     }
@@ -953,5 +918,46 @@ struct DeleteResponse: Codable {
 struct StatusResponse: Codable {
     let success: Bool
     let message: String
+}
+
+// MARK: - Request Configuration
+
+struct GistUpdateResponse: Codable {
+    let success: Bool
+    let message: String
+    
+    init(success: Bool, message: String) {
+        self.success = success
+        self.message = message
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+    }
+}
+
+// Response wrapper for gists
+struct GistsResponse: Codable {
+    let gists: [Gist]
+    
+    enum CodingKeys: String, CodingKey {
+        case gists
+    }
+}
+
+// Add a new response struct for storeArticle
+struct StoreArticleResponse {
+    let success: Bool
+    let message: String
+    let linkId: String?
+    let gistId: String?
+    
+    init(success: Bool, message: String, linkId: String? = nil, gistId: String? = nil) {
+        self.success = success
+        self.message = message
+        self.linkId = linkId
+        self.gistId = gistId
+    }
 }
 

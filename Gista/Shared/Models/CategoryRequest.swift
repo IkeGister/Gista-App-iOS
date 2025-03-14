@@ -1,3 +1,10 @@
+//
+//  CategoryRequest2.swift
+//  Gista
+//
+//  Created by Tony Nlemadim on 3/14/25.
+//
+
 /// Request model for creating or updating categories
 public struct CategoryRequest: Encodable {
     public let name: String
@@ -15,22 +22,3 @@ public struct CategoryRequest: Encodable {
         self.tags = tags
     }
 }
-
-public struct Category: Codable {
-    public let id: String
-    public let name: String
-    public let slug: String
-    public let tags: [String]
-    
-    private enum CodingKeys: String, CodingKey {
-        case id = "_id"
-        case name
-        case slug
-        case tags
-    }
-}
-
-public struct CategoriesResponse: Codable {
-    public let categories: [Category]
-    public let count: Int
-} 

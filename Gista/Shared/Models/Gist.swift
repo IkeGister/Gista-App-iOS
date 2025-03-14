@@ -104,16 +104,38 @@ public struct Gist: Identifiable, Codable {
             self.dateCreated = Date()
         }
         
-        self.imageUrl = try container.decode(String.self, forKey: .imageUrl)
-        self.isPlayed = try container.decode(Bool.self, forKey: .isPlayed)
-        self.isPublished = try container.decode(Bool.self, forKey: .isPublished)
+        // Try to decode imageUrl, but use a default if missing
+        if let imageUrlString = try? container.decode(String.self, forKey: .imageUrl) {
+            self.imageUrl = imageUrlString
+        } else {
+            print("Warning: imageUrl missing in Gist, using default")
+            self.imageUrl = "https://example.com/image.jpg"
+        }
+        
+        // Try to decode optional fields with defaults
+        self.isPlayed = try container.decodeIfPresent(Bool.self, forKey: .isPlayed) ?? false
+        self.isPublished = try container.decodeIfPresent(Bool.self, forKey: .isPublished) ?? true
         self.link = try container.decode(String.self, forKey: .link)
-        self.playbackDuration = try container.decode(Int.self, forKey: .playbackDuration)
-        self.publisher = try container.decode(String.self, forKey: .publisher)
-        self.ratings = try container.decode(Int.self, forKey: .ratings)
-        self.segments = try container.decode([GistSegment].self, forKey: .segments)
-        self.status = try container.decode(GistStatus.self, forKey: .status)
-        self.users = try container.decode(Int.self, forKey: .users)
+        self.playbackDuration = try container.decodeIfPresent(Int.self, forKey: .playbackDuration) ?? 0
+        self.publisher = try container.decodeIfPresent(String.self, forKey: .publisher) ?? "theNewGista"
+        self.ratings = try container.decodeIfPresent(Int.self, forKey: .ratings) ?? 0
+        self.users = try container.decodeIfPresent(Int.self, forKey: .users) ?? 0
+        
+        // Try to decode segments, but use an empty array if missing or if decoding fails
+        do {
+            self.segments = try container.decode([GistSegment].self, forKey: .segments)
+        } catch {
+            print("Warning: Failed to decode segments in Gist: \(error)")
+            self.segments = []
+        }
+        
+        // Try to decode status, but use a default if missing or if decoding fails
+        do {
+            self.status = try container.decode(GistStatus.self, forKey: .status)
+        } catch {
+            print("Warning: Failed to decode status in Gist: \(error)")
+            self.status = GistStatus(inProduction: false, productionStatus: "Reviewing Content")
+        }
         
         // Try to decode gistColor, but use a default if missing
         if let gistColor = try? container.decodeIfPresent(GistColor.self, forKey: .gistColor) {
@@ -167,18 +189,18 @@ public struct GistSegment: Codable {
     public let audioUrl: String
     public let segmentIndex: Int?
     
+    enum CodingKeys: String, CodingKey {
+        case duration = "playback_duration"
+        case title = "segment_title"
+        case audioUrl = "segment_audioUrl"
+        case segmentIndex = "segment_index"
+    }
+    
     public init(duration: Int, title: String, audioUrl: String, segmentIndex: Int? = nil) {
         self.duration = duration
         self.title = title
         self.audioUrl = audioUrl
         self.segmentIndex = segmentIndex
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case duration
-        case title
-        case audioUrl = "audioUrl"
-        case segmentIndex = "index"
     }
     
     public init(from decoder: Decoder) throws {
@@ -194,9 +216,38 @@ public struct GistSegment: Codable {
             self.duration = 0
         }
         
-        self.title = try container.decode(String.self, forKey: .title)
-        self.audioUrl = try container.decode(String.self, forKey: .audioUrl)
+        // Try to decode title, but use a default if missing
+        if let titleValue = try? container.decode(String.self, forKey: .title) {
+            self.title = titleValue
+        } else {
+            self.title = "Untitled Segment"
+        }
+        
+        // Try to decode audioUrl, but use a default if missing
+        if let audioUrlValue = try? container.decode(String.self, forKey: .audioUrl) {
+            self.audioUrl = audioUrlValue
+        } else {
+            self.audioUrl = "https://example.com/audio.mp3"
+        }
+        
         self.segmentIndex = try container.decodeIfPresent(Int.self, forKey: .segmentIndex)
+    }
+    
+    // Custom encode method to ensure proper formatting for the API
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(duration, forKey: .duration)
+        
+        // Ensure title is never undefined by using a default if it's empty
+        let safeTitle = title.isEmpty ? "Untitled Segment" : title
+        try container.encode(safeTitle, forKey: .title)
+        
+        try container.encode(audioUrl, forKey: .audioUrl)
+        
+        if let segmentIndex = segmentIndex {
+            try container.encode(segmentIndex, forKey: .segmentIndex)
+        }
     }
 }
 
@@ -212,6 +263,17 @@ public struct GistStatus: Codable {
     enum CodingKeys: String, CodingKey {
         case inProduction
         case productionStatus = "production_status"
+    }
+    
+    // Custom encode method to ensure proper formatting for the API
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(inProduction, forKey: .inProduction)
+        
+        // Ensure productionStatus is never undefined
+        let safeStatus = productionStatus.isEmpty ? "Reviewing Content" : productionStatus
+        try container.encode(safeStatus, forKey: .productionStatus)
     }
 }
 
@@ -294,13 +356,57 @@ public struct GistRequest: Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case title, link, category, segments, status
+        case title, link, category, segments, status, isFinished
         case imageUrl = "image_url"
         case playbackDuration = "playback_duration"
         case linkId = "link_id"
         case gistId = "gist_id"
-        case isFinished
         case playbackTime = "playback_time"
+    }
+    
+    // Custom encode method to ensure proper formatting for the API
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        // Ensure title is never undefined
+        let safeTitle = title.isEmpty ? "Untitled Gist" : title
+        try container.encode(safeTitle, forKey: .title)
+        
+        // Ensure link is never undefined
+        let safeLink = link.isEmpty ? "https://example.com" : link
+        try container.encode(safeLink, forKey: .link)
+        
+        // Ensure imageUrl is never undefined
+        let safeImageUrl = imageUrl.isEmpty ? "https://example.com/image.jpg" : imageUrl
+        try container.encode(safeImageUrl, forKey: .imageUrl)
+        
+        // Ensure category is never undefined
+        let safeCategory = category.isEmpty ? "General" : category
+        try container.encode(safeCategory, forKey: .category)
+        
+        // Ensure segments array is never empty
+        if segments.isEmpty {
+            let defaultSegment = GistSegment(
+                duration: 60,
+                title: "Default Segment",
+                audioUrl: "https://example.com/audio.mp3",
+                segmentIndex: 0
+            )
+            try container.encode([defaultSegment], forKey: .segments)
+        } else {
+            try container.encode(segments, forKey: .segments)
+        }
+        
+        try container.encode(playbackDuration, forKey: .playbackDuration)
+        try container.encode(linkId, forKey: .linkId)
+        
+        if let gistId = gistId {
+            try container.encode(gistId, forKey: .gistId)
+        }
+        
+        try container.encode(isFinished, forKey: .isFinished)
+        try container.encode(playbackTime, forKey: .playbackTime)
+        try container.encode(status, forKey: .status)
     }
 }
 

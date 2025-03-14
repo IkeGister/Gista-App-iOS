@@ -18,6 +18,7 @@ struct GistaServiceTestView: View {
     @State private var articleUrl = "https://example.com/article"
     @State private var articleTitle: String
     @State private var articleCategory = "Technology"
+    @State private var autoCreateGist = true
     
     // Test state
     @State private var logs: [LogEntry] = []
@@ -32,13 +33,10 @@ struct GistaServiceTestView: View {
         // Generate timestamp for unique test identification
         let timestamp = Int(Date().timeIntervalSince1970)
         
-        // Get device name for identification
-        let deviceName = UIDevice.current.name.replacingOccurrences(of: " ", with: "-")
-        let safeDeviceName = deviceName.components(separatedBy: CharacterSet.alphanumerics.inverted).joined(separator: "-")
-        
-        let emailValue = "ios-client-\(safeDeviceName)-\(timestamp)@example.com"
-        let usernameValue = "ios-client-\(safeDeviceName)-\(timestamp)"
-        let articleTitleValue = "iOS Client Test Article - \(safeDeviceName) - \(timestamp)"
+        // Use consistent iOS-client-tester identifier for database identification
+        let emailValue = "iOS-client-tester-\(timestamp)@example.com"
+        let usernameValue = "iOS-client-tester-\(timestamp)"
+        let articleTitleValue = "iOS Client Test Article - \(timestamp)"
         
         // Initialize the state properties
         _email = State(initialValue: emailValue)
@@ -67,6 +65,11 @@ struct GistaServiceTestView: View {
                             TextField("Username", text: $username)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .autocapitalization(.none)
+                            
+                            Text("Using 'iOS-client-tester' prefix to identify test users in the database")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 4)
                         }
                         .padding(.vertical, 8)
                     }
@@ -85,29 +88,152 @@ struct GistaServiceTestView: View {
                             
                             TextField("Category", text: $articleCategory)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                            
+                            Toggle("Auto-create Gist", isOn: $autoCreateGist)
+                                .toggleStyle(SwitchToggleStyle())
+                                .padding(.vertical, 4)
                         }
                         .padding(.vertical, 8)
                     }
                     .padding(.horizontal)
                     
                     // Test Actions Section
-                    GroupBox(label: Text("Test Actions").bold()) {
+                    GroupBox(label: Text("Core Service Flow").bold()) {
                         VStack(spacing: 12) {
-                            // Debug buttons
+                            // Main Service Flow
                             Group {
+                                Button(action: {
+                                    // Debounce mechanism - ignore taps that are too close together
+                                    let now = Date()
+                                    if now.timeIntervalSince(lastButtonTapTime) < 1.0 {
+                                        // Ignore taps that are less than 1 second apart
+                                        return
+                                    }
+                                    lastButtonTapTime = now
+                                    
+                                    Task {
+                                        await createUser()
+                                    }
+                                }) {
+                                    Text("1. Create User")
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(viewModel.isLoading || isCreatingUser ? Color.gray : Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                .disabled(viewModel.isLoading || isCreatingUser)
+                                
+                                Button(action: {
+                                    // Debounce mechanism - ignore taps that are too close together
+                                    let now = Date()
+                                    if now.timeIntervalSince(lastButtonTapTime) < 1.0 {
+                                        // Ignore taps that are less than 1 second apart
+                                        return
+                                    }
+                                    lastButtonTapTime = now
+                                    
+                                    Task {
+                                        await addArticle()
+                                    }
+                                }) {
+                                    Text("2. Store Link" + (autoCreateGist ? " (Auto-Create Gist)" : ""))
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(viewModel.isLoading || isAddingArticle ? Color.gray : Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                .disabled(viewModel.isLoading || isAddingArticle)
+                                
                                 Button(action: {
                                     Task {
                                         await checkAPIConnectivity()
                                     }
                                 }) {
-                                    Text("Check API Connectivity")
+                                    Text("3. Check API Health")
                                         .frame(maxWidth: .infinity)
                                         .padding()
-                                        .background(Color.purple)
+                                        .background(viewModel.isLoading ? Color.gray : Color.blue)
                                         .foregroundColor(.white)
                                         .cornerRadius(8)
                                 }
+                                .disabled(viewModel.isLoading)
                                 
+                                Button(action: {
+                                    Task {
+                                        await deleteUser()
+                                    }
+                                }) {
+                                    Text("4. Delete User")
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(viewModel.isLoading ? Color.gray : Color.red)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                .disabled(viewModel.isLoading)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Additional Actions Section (Optional/Advanced)
+                    GroupBox(label: Text("Additional Actions").bold()) {
+                        VStack(spacing: 12) {
+                            Group {
+                                Button(action: {
+                                    Task {
+                                        await updateUser()
+                                    }
+                                }) {
+                                    Text("Update User")
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(viewModel.isLoading ? Color.gray : Color.orange)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                .disabled(viewModel.isLoading)
+                                
+                                Button(action: {
+                                    Task {
+                                        await updateGistProductionStatus()
+                                    }
+                                }) {
+                                    Text("Update Gist Status (Signal-Based)")
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(viewModel.isLoading ? Color.gray : Color.orange)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                .disabled(viewModel.isLoading)
+                                
+                                Button(action: {
+                                    Task {
+                                        await fetchCategories()
+                                    }
+                                }) {
+                                    Text("Fetch Categories")
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(viewModel.isLoading ? Color.gray : Color.orange)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                .disabled(viewModel.isLoading)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Utility Actions
+                    GroupBox(label: Text("Utilities").bold()) {
+                        VStack(spacing: 12) {
+                            Group {
                                 Button(action: {
                                     checkNetworkPermissions()
                                 }) {
@@ -129,143 +255,6 @@ struct GistaServiceTestView: View {
                                         .foregroundColor(.white)
                                         .cornerRadius(8)
                                 }
-                            }
-                            
-                            // User flow
-                            Group {
-                                Button(action: {
-                                    // Debounce mechanism - ignore taps that are too close together
-                                    let now = Date()
-                                    if now.timeIntervalSince(lastButtonTapTime) < 1.0 {
-                                        // Ignore taps that are less than 1 second apart
-                                        return
-                                    }
-                                    lastButtonTapTime = now
-                                    
-                                    Task {
-                                        await createUser()
-                                    }
-                                }) {
-                                    Text("1. Create User in Database")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading || isCreatingUser ? Color.gray : Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading || isCreatingUser)
-                                
-                                Button(action: {
-                                    Task {
-                                        await updateUser()
-                                    }
-                                }) {
-                                    Text("2. Update User in Database")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading ? Color.gray : Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading)
-                            }
-                            
-                            // Content flow
-                            Group {
-                                Button(action: {
-                                    // Debounce mechanism - ignore taps that are too close together
-                                    let now = Date()
-                                    if now.timeIntervalSince(lastButtonTapTime) < 1.0 {
-                                        // Ignore taps that are less than 1 second apart
-                                        return
-                                    }
-                                    lastButtonTapTime = now
-                                    
-                                    Task {
-                                        await addArticle()
-                                    }
-                                }) {
-                                    Text("3. Add Article to Database")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading || isAddingArticle ? Color.gray : Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading || isAddingArticle)
-                                
-                                Button(action: {
-                                    Task {
-                                        await createGist()
-                                    }
-                                }) {
-                                    Text("4. Create Gist in Database")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading ? Color.gray : Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading)
-                                
-                                Button(action: {
-                                    Task {
-                                        await updateGist()
-                                    }
-                                }) {
-                                    Text("5. Update Gist in Database")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading ? Color.gray : Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading)
-                                
-                                Button(action: {
-                                    Task {
-                                        await updateGistProductionStatus()
-                                    }
-                                }) {
-                                    Text("5b. Update Gist Status (Signal)")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading ? Color.gray : Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading)
-                            }
-                            
-                            // Additional actions
-                            Group {
-                                Button(action: {
-                                    Task {
-                                        await fetchCategories()
-                                    }
-                                }) {
-                                    Text("Fetch Categories")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading ? Color.gray : Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading)
-                                
-                                Button(action: {
-                                    Task {
-                                        await deleteUser()
-                                    }
-                                }) {
-                                    Text("6. Delete User from Database")
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(viewModel.isLoading ? Color.gray : Color.red)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isLoading)
                                 
                                 Button(action: {
                                     debugState()
@@ -284,7 +273,7 @@ struct GistaServiceTestView: View {
                                     Text("Reset Test")
                                         .frame(maxWidth: .infinity)
                                         .padding()
-                                        .background(Color.orange)
+                                        .background(Color.red)
                                         .foregroundColor(.white)
                                         .cornerRadius(8)
                                 }
@@ -379,7 +368,7 @@ struct GistaServiceTestView: View {
         // Set the flag to prevent multiple calls
         isCreatingUser = true
         
-        addLog(title: "Creating User", message: "Email: \(email)\nUsername: \(username)")
+        addLog(title: "Creating User", message: "Email: \(email)\nUsername: \(username)\nPassword: \(password)")
         
         do {
             // Call the service directly
@@ -388,10 +377,37 @@ struct GistaServiceTestView: View {
             // Update the currentUserId with the one returned from the API
             currentUserId = user.userId
             
-            addLog(title: "User Created Successfully", message: "User ID: \(user.userId)\nUser: \(username)\nEmail: \(email)", type: .success)
+            // Print the entire user object for debugging
+            print("===== USER CREATION RESPONSE =====")
+            print("User Object: \(user)")
+            print("User ID: \(user.userId)")
+            print("Message: \(user.message)")
+            print("API Debug Info: User created successfully with userId: \(user.userId)")
+            print("===================================")
             
-            // Removed automatic categories fetch
+            // Log detailed success message
+            let detailedMessage = """
+            User created successfully:
+            User ID: \(user.userId)
+            Username: \(username)
+            Email: \(email)
+            Response Message: \(user.message)
+            
+            NOTE: If you don't see this user in the database, please check:
+            1. The correct environment is being used (dev vs prod)
+            2. Network connectivity is working (use Check API Health)
+            3. The user ID above is correctly formatted
+            """
+            
+            addLog(title: "User Created Successfully", message: detailedMessage, type: .success)
         } catch {
+            print("===== USER CREATION ERROR =====")
+            print("Error: \(error)")
+            if let gistaError = error as? GistaError {
+                print("GistaError details: \(gistaError.errorDescription ?? "No description")")
+            }
+            print("===============================")
+            
             addLog(title: "User Creation Error", message: "Error: \(error.localizedDescription)\nUser: \(username)\nEmail: \(email)", type: .error)
         }
         
@@ -458,27 +474,44 @@ struct GistaServiceTestView: View {
         
         addLog(title: "Adding Article", message: "Title: \(articleTitle)\nURL: \(articleUrl)\nCategory: \(articleCategory)\nUser ID: \(userId)")
         
-        // Directly call the service with the user ID
+        // Call the service
         do {
-            // Call the service
-            let storedArticle = try await viewModel.gistaService.storeArticle(
+            // Call the storeArticle method with the new response type
+            let response = try await viewModel.gistaService.storeArticle(
                 userId: userId,
-                article: article
+                article: article,
+                autoCreateGist: autoCreateGist
             )
             
-            // Add the article to the view model's articles array
-            await MainActor.run {
-                viewModel.articles.append(storedArticle)
+            // Log success with detailed information
+            var logMessage = """
+            Response: \(response.success ? "Success" : "Failed")
+            Message: \(response.message)
+            """
+            
+            // Add gistId if available
+            if let gistId = response.gistId {
+                logMessage += "\nGist ID: \(gistId)"
+                currentGistId = gistId
             }
             
-            // Set the current article ID
-            currentArticleId = storedArticle.id.uuidString
+            // Add linkId if available
+            if let linkId = response.linkId {
+                logMessage += "\nLink ID: \(linkId)"
+                currentArticleId = linkId
+            } else {
+                // If no linkId is provided, generate a temporary ID for UI display
+                currentArticleId = UUID().uuidString
+                logMessage += "\nTemporary Article ID: \(currentArticleId!)"
+            }
             
-            // Log success with detailed information
-            addLog(title: "Article Added Successfully", message: "Article ID: \(currentArticleId ?? "Unknown")\nTitle: \(storedArticle.title)\nCategory: \(storedArticle.category)\nLink ID: \(storedArticle.linkId ?? "Unknown")", type: .success)
+            // Add information about auto-created gist
+            logMessage += "\nAuto-create Gist: \(autoCreateGist)"
+            
+            addLog(title: "Article Added Successfully", message: logMessage, type: .success)
             
             // Print debug info
-            print("Article added successfully: \(storedArticle)")
+            print("Article added successfully: \(response)")
         } catch {
             // Log the detailed error
             addLog(title: "Article Addition Error", message: "Error: \(error.localizedDescription)\nTitle: \(articleTitle)", type: .error)
@@ -495,121 +528,6 @@ struct GistaServiceTestView: View {
         isAddingArticle = false
     }
     
-    private func createGist() async {
-        // Check if we have a user ID
-        guard let userId = currentUserId, !userId.isEmpty else {
-            addLog(title: "User Required", message: "Please create a user first using the 'Create User in Database' button before creating a gist.", type: .error)
-            return
-        }
-        
-        // Check if we have an article
-        if currentArticleId == nil {
-            addLog(title: "Article Required", message: "Please add an article first using the 'Add Article to Database' button before creating a gist.", type: .error)
-            return
-        }
-        
-        // Get the article
-        guard let articleId = currentArticleId,
-              let article = viewModel.articles.first(where: { $0.id.uuidString == articleId }) else {
-            addLog(title: "Article Not Found", message: "The article with ID \(currentArticleId ?? "Unknown") was not found.", type: .error)
-            return
-        }
-        
-        // Get the link ID from the article's gistStatus
-        guard let linkId = article.gistStatus?.articleId else {
-            addLog(title: "Link ID Not Found", message: "The article does not have a valid link ID. Please try adding the article again.", type: .error)
-            return
-        }
-        
-        // Generate a unique gist ID
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let gistId = "gist_\(timestamp)"
-        
-        let gistRequest = GistRequest(
-            title: article.title,
-            link: article.url.absoluteString,
-            imageUrl: "https://example.com/image.jpg",
-            category: article.category,
-            segments: [
-                GistSegment(
-                    duration: 60,
-                    title: "Test Segment",
-                    audioUrl: "https://example.com/audio1.mp3",
-                    segmentIndex: 0
-                )
-            ],
-            playbackDuration: 180,
-            linkId: linkId,
-            gistId: gistId,
-            isFinished: false,
-            playbackTime: 0,
-            status: GistStatus(
-                inProduction: false,
-                productionStatus: "Reviewing Content"
-            )
-        )
-        
-        addLog(title: "Creating Gist", message: "Title: \(gistRequest.title)\nCategory: \(gistRequest.category)\nSegments: \(gistRequest.segments.count)\nLink ID: \(linkId)\nGist ID: \(gistId)\nUser ID: \(userId)")
-        
-        // Add debug logging for the request
-        print("Creating gist with request: \(gistRequest)")
-        print("Segments: \(gistRequest.segments)")
-        
-        // Directly call the service with the user ID
-        do {
-            let createdGist = try await viewModel.gistaService.createGist(
-                userId: userId,
-                gist: gistRequest
-            )
-            
-            // Add the gist to the view model's gists array
-            await MainActor.run {
-                viewModel.gists.append(createdGist)
-            }
-            
-            currentGistId = createdGist.id.uuidString
-            addLog(title: "Gist Created", message: "Gist ID: \(currentGistId ?? "Unknown")\nTitle: \(createdGist.title)\nCategory: \(createdGist.category)\nSegments: \(createdGist.segments.count)", type: .success)
-            
-            // Update the article with the gist information
-            do {
-                let updatedArticle = try await viewModel.gistaService.updateArticleGistStatus(
-                    userId: userId,
-                    articleId: articleId,
-                    gistId: createdGist.id.uuidString,
-                    imageUrl: "https://example.com/image.jpg",
-                    title: article.title
-                )
-                
-                // Update the article in the view model's articles array
-                await MainActor.run {
-                    if let index = viewModel.articles.firstIndex(where: { $0.id.uuidString == articleId }) {
-                        viewModel.articles[index] = updatedArticle
-                    }
-                }
-                
-                addLog(title: "Article Updated", message: "Article ID: \(articleId)\nLinked to Gist ID: \(createdGist.id.uuidString)", type: .success)
-            } catch {
-                addLog(title: "Article Update Error", message: "Error: \(error.localizedDescription)\nArticle ID: \(articleId)", type: .error)
-                print("Article update error details: \(error)")
-            }
-        } catch {
-            addLog(title: "Gist Creation Error", message: "Error: \(error.localizedDescription)\nTitle: \(gistRequest.title)", type: .error)
-            print("Gist creation error details: \(error)")
-            
-            // Try to extract more information about the error
-            if let gistaError = error as? GistaError {
-                print("GistaError: \(gistaError.errorDescription ?? "Unknown")")
-                addLog(title: "Detailed Error", message: gistaError.errorDescription ?? "Unknown", type: .error)
-            }
-            
-            // If it's a server error, try to extract the response
-            if let serverError = error as? GistaError, case let .serverError(message) = serverError {
-                print("Server error message: \(message)")
-                addLog(title: "Server Error", message: message, type: .error)
-            }
-        }
-    }
-    
     private func updateGist() async {
         // Check if we have a user ID
         guard let userId = currentUserId, !userId.isEmpty else {
@@ -623,18 +541,30 @@ struct GistaServiceTestView: View {
             return
         }
         
+        // Get the gist from the viewModel
+        guard let gist = viewModel.gists.first(where: { $0.id.uuidString == currentGistId }) else {
+            addLog(title: "Gist Not Found", message: "The gist with ID \(currentGistId!) was not found in the view model.", type: .error)
+            return
+        }
+        
+        // Get the server gistId (string ID) from the gist
+        guard let serverGistId = gist.gistId else {
+            addLog(title: "Server Gist ID Missing", message: "The gist does not have a server gistId. This is required for updating.", type: .error)
+            return
+        }
+        
         let newStatus = GistStatus(
             inProduction: true,
             productionStatus: "In Production"
         )
         
-        addLog(title: "Updating Gist", message: "Gist ID: \(currentGistId!)\nStatus: In Production\nIsPlayed: true\nRatings: 4\nUser ID: \(userId)")
+        addLog(title: "Updating Gist", message: "Gist ID: \(serverGistId)\nStatus: In Production\nIsPlayed: true\nRatings: 4\nUser ID: \(userId)")
         
-        // Directly call the service with the user ID
+        // Directly call the service with the user ID and server gistId
         do {
             let success = try await viewModel.gistaService.updateGistStatus(
                 userId: userId,
-                gistId: currentGistId!,
+                gistId: serverGistId, // Use the string ID returned by the server
                 status: newStatus,
                 isPlayed: true,
                 ratings: 4
@@ -651,15 +581,15 @@ struct GistaServiceTestView: View {
                 
                 // Find the updated gist
                 if let updatedGist = gists.first(where: { $0.id.uuidString == currentGistId }) {
-                    addLog(title: "Gist Updated", message: "Gist ID: \(currentGistId!)\nTitle: \(updatedGist.title)\nStatus: \(updatedGist.status.productionStatus)\nIsPlayed: \(updatedGist.isPlayed ? "Yes" : "No")\nRatings: \(updatedGist.ratings)", type: .success)
+                    addLog(title: "Gist Updated", message: "Gist ID: \(serverGistId)\nTitle: \(updatedGist.title)\nStatus: \(updatedGist.status.productionStatus)\nIsPlayed: \(updatedGist.isPlayed ? "Yes" : "No")\nRatings: \(updatedGist.ratings)", type: .success)
                 } else {
-                    addLog(title: "Gist Updated", message: "Status updated to In Production\nGist ID: \(currentGistId!)", type: .success)
+                    addLog(title: "Gist Updated", message: "Status updated to In Production\nGist ID: \(serverGistId)", type: .success)
                 }
             } else {
-                addLog(title: "Gist Update Failed", message: "Failed to update gist with ID \(currentGistId!)", type: .error)
+                addLog(title: "Gist Update Failed", message: "Failed to update gist with ID \(serverGistId)", type: .error)
             }
         } catch {
-            addLog(title: "Gist Update Error", message: "Error: \(error.localizedDescription)\nGist ID: \(currentGistId!)", type: .error)
+            addLog(title: "Gist Update Error", message: "Error: \(error.localizedDescription)\nGist ID: \(serverGistId)", type: .error)
         }
     }
     
@@ -670,31 +600,33 @@ struct GistaServiceTestView: View {
             return
         }
         
-        // Check if we have a gist
+        // Check if we have a gist ID
         guard let gistId = currentGistId, !gistId.isEmpty else {
-            addLog(title: "Gist Required", message: "Please create a gist first using the 'Create Gist in Database' button before updating it.", type: .error)
+            addLog(title: "Gist Required", message: "Please create a gist first before updating its status.", type: .error)
             return
         }
         
-        addLog(title: "Updating Gist Status (Signal)", message: "Gist ID: \(gistId)\nUser ID: \(userId)\nUsing signal-based approach (no request body)")
+        addLog(title: "Updating Gist Production Status", message: "User ID: \(userId)\nGist ID: \(gistId)\nUsing signal-based approach with empty JSON body")
         
-        // Set the viewModel's userId
-        viewModel.setUserId(userId)
-        
-        // Call the ViewModel method
-        await viewModel.updateGistProductionStatus(gistId: gistId)
-        
-        // Check for errors
-        if viewModel.showError, let errorMessage = viewModel.errorMessage {
-            addLog(title: "Gist Status Update Error", message: "Error: \(errorMessage)\nGist ID: \(gistId)", type: .error)
-            return
-        }
-        
-        // Find the updated gist
-        if let updatedGist = viewModel.gists.first(where: { $0.id.uuidString == gistId }) {
-            addLog(title: "Gist Status Updated (Signal)", message: "Gist ID: \(gistId)\nTitle: \(updatedGist.title)\nStatus: \(updatedGist.status.productionStatus)\nInProduction: \(updatedGist.status.inProduction ? "Yes" : "No")", type: .success)
-        } else {
-            addLog(title: "Gist Status Updated (Signal)", message: "Status updated to 'Reviewing Content'\nInProduction set to true\nGist ID: \(gistId)", type: .success)
+        // This uses the signal-based approach with an empty JSON body
+        // The API will automatically set inProduction=true and productionStatus="Reviewing Content"
+        do {
+            let success = try await viewModel.gistaService.updateGistProductionStatus(
+                userId: userId,
+                gistId: gistId
+            )
+            
+            if success {
+                addLog(title: "Gist Production Status Updated", message: "Gist ID: \(gistId)", type: .success)
+                
+                // Fetch the updated gists
+                await viewModel.fetchGists()
+            } else {
+                addLog(title: "Gist Production Status Update Failed", message: "Gist ID: \(gistId)", type: .error)
+            }
+        } catch {
+            addLog(title: "Gist Production Status Update Error", message: "Error: \(error.localizedDescription)\nGist ID: \(gistId)", type: .error)
+            print("Gist production status update error details: \(error)")
         }
     }
     
@@ -751,12 +683,10 @@ struct GistaServiceTestView: View {
                 
                 // Generate new test data for the next test
                 let timestamp = Int(Date().timeIntervalSince1970)
-                let deviceName = UIDevice.current.name.replacingOccurrences(of: " ", with: "-")
-                let safeDeviceName = deviceName.components(separatedBy: CharacterSet.alphanumerics.inverted).joined(separator: "-")
                 
-                email = "ios-client-\(safeDeviceName)-\(timestamp)@example.com"
-                username = "ios-client-\(safeDeviceName)-\(timestamp)"
-                articleTitle = "iOS Client Test Article - \(safeDeviceName) - \(timestamp)"
+                email = "iOS-client-tester-\(timestamp)@example.com"
+                username = "iOS-client-tester-\(timestamp)"
+                articleTitle = "iOS Client Test Article - \(timestamp)"
                 
                 // Add log entry
                 addLog(title: "Test Reset After Deletion", message: "All test data has been reset. New test data generated:\nEmail: \(email)\nUsername: \(username)", type: .info)
@@ -946,12 +876,10 @@ struct GistaServiceTestView: View {
         
         // Generate new test data
         let timestamp = Int(Date().timeIntervalSince1970)
-        let deviceName = UIDevice.current.name.replacingOccurrences(of: " ", with: "-")
-        let safeDeviceName = deviceName.components(separatedBy: CharacterSet.alphanumerics.inverted).joined(separator: "-")
         
-        email = "ios-client-\(safeDeviceName)-\(timestamp)@example.com"
-        username = "ios-client-\(safeDeviceName)-\(timestamp)"
-        articleTitle = "iOS Client Test Article - \(safeDeviceName) - \(timestamp)"
+        email = "iOS-client-tester-\(timestamp)@example.com"
+        username = "iOS-client-tester-\(timestamp)"
+        articleTitle = "iOS Client Test Article - \(timestamp)"
         
         // Clear logs and reset viewModel's articles and gists, but keep the user ID
         logs.removeAll()
@@ -978,6 +906,105 @@ struct GistaServiceTestView: View {
         
         print(stateInfo)
         addLog(title: "Debug State", message: stateInfo, type: .info)
+    }
+    
+    // Add this function to test the specific user and gist ID
+    private func testSpecificGistUpdate() async {
+        let specificUserId = "user_-3666484451248197126"
+        let specificGistId = "link_1741632580992"
+        
+        print("🧪 TESTING: Update gist production status with specific IDs")
+        print("👤 User ID: \(specificUserId)")
+        print("📝 Gist ID: \(specificGistId)")
+        
+        addLog(title: "Testing Specific Gist Update", message: "Using specific test data:\nUser ID: \(specificUserId)\nGist ID: \(specificGistId)")
+        
+        do {
+            let result = try await viewModel.gistaService.updateGistProductionStatus(
+                userId: specificUserId,
+                gistId: specificGistId
+            )
+            
+            print("✅ TEST RESULT: \(result ? "Success" : "Failed")")
+            
+            addLog(title: "Specific Gist Update Result", 
+                   message: "Result: \(result ? "Success" : "Failed")\nUser ID: \(specificUserId)\nGist ID: \(specificGistId)", 
+                   type: result ? .success : .error)
+            
+            // Also try the Postman-verified format directly
+            let postmanTestUserId = "test_user_postman"
+            let postmanTestGistId = "link_1741314120894"
+            
+            addLog(title: "Testing Postman-verified Format", 
+                   message: "Using Postman-verified data:\nUser ID: \(postmanTestUserId)\nGist ID: \(postmanTestGistId)")
+            
+            let postmanResult = try await viewModel.gistaService.updateGistProductionStatus(
+                userId: postmanTestUserId,
+                gistId: postmanTestGistId
+            )
+            
+            print("✅ POSTMAN TEST RESULT: \(postmanResult ? "Success" : "Failed")")
+            
+            addLog(title: "Postman-verified Format Result", 
+                   message: "Result: \(postmanResult ? "Success" : "Failed")\nUser ID: \(postmanTestUserId)\nGist ID: \(postmanTestGistId)", 
+                   type: postmanResult ? .success : .error)
+            
+        } catch {
+            print("❌ TEST ERROR: \(error)")
+            if let gistaError = error as? GistaError {
+                print("GistaError details: \(gistaError.errorDescription ?? "No description")")
+            }
+            
+            addLog(title: "Specific Gist Update Error", 
+                   message: "Error: \(error.localizedDescription)\nUser ID: \(specificUserId)\nGist ID: \(specificGistId)", 
+                   type: .error)
+        }
+    }
+    
+    // Add new function to test creating a gist with empty segments
+    private func testEmptySegments() async {
+        // Check if we have a user ID
+        guard let userId = currentUserId, !userId.isEmpty else {
+            addLog(title: "User Required", message: "Please create a user first using the 'Create User in Database' button before testing.", type: .error)
+            return
+        }
+        
+        // Generate a unique link ID for this test
+        let linkId = "link_\(Int(Date().timeIntervalSince1970))"
+        
+        addLog(title: "Testing Empty Segments", message: "User ID: \(userId)\nLink ID: \(linkId)")
+        
+        // Call the storeArticle method with autoCreateGist set to true
+        let article = Article(
+            title: "Empty Segments Test",
+            url: URL(string: "https://example.com/empty-segments-test")!,
+            duration: 0,
+            category: "Technology"
+        )
+
+        // Store the article and automatically create a gist
+        await viewModel.storeArticle(article: article, autoCreateGist: true)
+        
+        // Check if there was an error
+        if viewModel.showError, let errorMessage = viewModel.errorMessage {
+            print("❌ TEST ERROR: \(errorMessage)")
+            addLog(title: "Empty Segments Test Failed", message: "Error: \(errorMessage)\nUser ID: \(userId)\nLink ID: \(linkId)", type: .error)
+            return
+        }
+
+        // Then check if the gist was created by looking at the articles in the viewModel
+        if let createdArticle = viewModel.articles.first(where: { $0.title == "Empty Segments Test" }),
+           let gistStatus = createdArticle.gistStatus,
+           gistStatus.gistCreated,
+           let gistId = gistStatus.gistId {
+            // The gist was created successfully
+            print("✅ TEST RESULT: \(gistId)")
+            addLog(title: "Empty Segments Test Succeeded", message: "Response: \(gistId)")
+        } else {
+            // The gist creation failed
+            print("❌ TEST RESULT: Failed to create gist")
+            addLog(title: "Empty Segments Test Failed", message: "Failed to create gist", type: .error)
+        }
     }
 }
 
