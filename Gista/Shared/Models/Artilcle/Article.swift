@@ -9,14 +9,14 @@ import SwiftUI
 import Foundation
 
 // MARK: - Helper Types
-struct AnyDecodable: Decodable {
-    let value: Any
+public struct AnyDecodable: Decodable {
+    public let value: Any
     
-    init(value: Any) {
+    public init(value: Any) {
         self.value = value
     }
     
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         
         if container.decodeNil() {
@@ -40,7 +40,7 @@ struct AnyDecodable: Decodable {
 }
 
 // MARK: - JSON Helper
-enum JSON: Codable {
+public enum JSON: Codable {
     case string(String)
     case int(Int)
     case double(Double)
@@ -98,7 +98,7 @@ enum JSON: Codable {
         return nil
     }
     
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         
         if container.decodeNil() {
@@ -120,7 +120,7 @@ enum JSON: Codable {
         }
     }
     
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         
         switch self {
@@ -173,13 +173,11 @@ public struct Article: Identifiable {
 
 
 // MARK: - API Models
-
-
-struct ArticlesResponse: Codable {
-    let articles: [ArticleData.LinkData]
-    let count: Int
+public struct ArticlesResponse: Codable {
+    public let articles: [ArticleData.LinkData]
+    public let count: Int
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case articles = "links"
         case count
     }

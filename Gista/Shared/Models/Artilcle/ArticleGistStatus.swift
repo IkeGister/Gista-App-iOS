@@ -36,7 +36,7 @@ public struct ArticleGistStatus: Codable {
         self.url = url
     }
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case gistCreated = "gist_created"
         case gistId = "gist_id"
         case imageUrl = "image_url"

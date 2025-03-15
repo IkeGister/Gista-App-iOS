@@ -14,6 +14,7 @@ struct GistaServiceTestApp: App {
     var body: some Scene {
         WindowGroup {
             GistaServiceTestView()
+                .preferredColorScheme(ColorScheme.dark) // Apply dark mode universally to all views
         }
     }
 } 

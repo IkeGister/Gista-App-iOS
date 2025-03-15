@@ -26,7 +26,7 @@ public struct Gist: Identifiable, Codable {
     public let gistColor: GistColor
     public let gistId: String?
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case title
         case category
         case dateCreated = "date_created"
@@ -158,7 +158,7 @@ public struct GistSegment: Codable {
     public let audioUrl: String
     public let segmentIndex: Int?
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case duration = "playback_duration"
         case title = "segment_title"
         case audioUrl = "segment_audioUrl"
@@ -229,7 +229,7 @@ public struct GistStatus: Codable {
         self.productionStatus = productionStatus
     }
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case inProduction
         case productionStatus = "production_status"
     }
@@ -250,7 +250,7 @@ public struct GistStatus: Codable {
 // MARK: - UI Supporting Types
 public struct GistColor: Codable {
     public let color: Color
-    let name: String
+    public let name: String
     
     public init(_ color: Color, name: String) {
         self.color = color
@@ -269,7 +269,7 @@ public struct GistColor: Codable {
         try container.encode(name)
     }
     
-    static let colorMap: [String: Color] = [
+    public static let colorMap: [String: Color] = [
         "blue": .blue,
         "green": .green,
         "purple": .purple,

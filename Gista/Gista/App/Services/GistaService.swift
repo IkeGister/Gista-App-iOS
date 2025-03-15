@@ -6,132 +6,16 @@
 //
 
 import Foundation
-import Shared
 
-// MARK: - Protocol
-protocol GistaServiceProtocol {
-    func createUser(email: String, password: String, username: String) async throws -> User
-    func updateUser(userId: String, username: String, email: String) async throws -> Bool
-    func deleteUser(userId: String) async throws -> Bool
-    func storeArticle(userId: String, article: Article, autoCreateGist: Bool) async throws -> GistaServiceResponse
-    func updateArticleGistStatus(userId: String, articleId: String, gistId: String, imageUrl: String, title: String) async throws -> Article
-    func fetchArticles(userId: String) async throws -> [Article]
-    func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool?, ratings: Int?) async throws -> Bool
-    func updateGistProductionStatus(userId: String, gistId: String) async throws -> Bool
-    func deleteGist(userId: String, gistId: String) async throws -> Bool
-    func fetchGists(userId: String) async throws -> [Gist]
-    func fetchCategories() async throws -> [GistCategory]
-    func fetchCategory(slug: String) async throws -> GistCategory
-    func createCategory(name: String, tags: [String]) async throws -> GistCategory
-    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> GistCategory
-}
-
-// MARK: - Errors
-enum GistaError: LocalizedError, Equatable {
-    case invalidURL
-    case networkError(Error)
-    case decodingError(Error)
-    case invalidResponse
-    case unauthorized
-    case serverError(String)
-    case forbidden
-    case notFound
-    case rateLimited
-    case unexpectedStatus(Int)
-    case unknown
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "Invalid URL"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .decodingError(let error):
-            return "Decoding error: \(error.localizedDescription)"
-        case .invalidResponse:
-            return "Invalid server response"
-        case .unauthorized:
-            return "Unauthorized access"
-        case .serverError(let message):
-            return "Server error: \(message)"
-        case .forbidden:
-            return "Forbidden access"
-        case .notFound:
-            return "Resource not found"
-        case .rateLimited:
-            return "Rate limit exceeded"
-        case .unexpectedStatus(let statusCode):
-            return "Unexpected status code: \(statusCode)"
-        case .unknown:
-            return "Unknown error"
-        }
-    }
-    
-    static func == (lhs: GistaError, rhs: GistaError) -> Bool {
-        switch (lhs, rhs) {
-        case (.invalidURL, .invalidURL),
-             (.invalidResponse, .invalidResponse),
-             (.unauthorized, .unauthorized),
-             (.forbidden, .forbidden),
-             (.notFound, .notFound),
-             (.rateLimited, .rateLimited):
-            return true
-        case let (.serverError(lhsMsg), .serverError(rhsMsg)):
-            return lhsMsg == rhsMsg
-        case let (.networkError(lhsErr), .networkError(rhsErr)):
-            return lhsErr.localizedDescription == rhsErr.localizedDescription
-        case let (.decodingError(lhsErr), .decodingError(rhsErr)):
-            return lhsErr.localizedDescription == rhsErr.localizedDescription
-        default:
-            return false
-        }
-    }
-}
-
-
-
-
-
-// Custom struct for gist update requests
-struct GistUpdateRequest: Codable {
-    let status: GistStatusRequest
-    let isPlayed: Bool?
-    let ratings: Int?
-    
-    struct GistStatusRequest: Codable {
-        let inProduction: Bool
-        let productionStatus: String
-        
-        enum CodingKeys: String, CodingKey {
-            case inProduction
-            case productionStatus = "production_status"
-        }
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case status
-        case isPlayed = "is_played"
-        case ratings
-    }
-    
-    init(status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) {
-        self.status = GistStatusRequest(
-            inProduction: status.inProduction,
-            productionStatus: status.productionStatus
-        )
-        self.isPlayed = isPlayed
-        self.ratings = ratings
-    }
-}
 
 // MARK: - Service Implementation
-final class GistaService: GistaServiceProtocol {
+public final class GistaService: GistaServiceProtocol {
     // MARK: - Environment
-    enum Environment {
+    public enum Environment {
         case development
         case production
         
-        var baseURL: URL {
+        public var baseURL: URL {
             switch self {
             case .development:
                 return URL(string: "https://us-central1-dof-ai.cloudfunctions.net/api")!
@@ -142,11 +26,11 @@ final class GistaService: GistaServiceProtocol {
     }
     
     // MARK: - Request Configuration
-    struct RequestConfig {
+    public struct RequestConfig {
         let timeout: TimeInterval
         let cachePolicy: URLRequest.CachePolicy
         
-        static let `default` = RequestConfig(
+        public static let `default` = RequestConfig(
             timeout: 30.0,
             cachePolicy: .useProtocolCachePolicy
         )
@@ -157,7 +41,7 @@ final class GistaService: GistaServiceProtocol {
     private let session: URLSessionProtocol
     private var authToken: String?
     
-    init(environment: Environment = .production,
+    public init(environment: Environment = .production,
          session: URLSessionProtocol = URLSession.shared,
          authToken: String? = nil) {
         self.baseURL = environment.baseURL
@@ -166,7 +50,7 @@ final class GistaService: GistaServiceProtocol {
     }
     
     // MARK: - User Management Methods
-    func createUser(email: String, password: String, username: String) async throws -> User {
+    public func createUser(email: String, password: String, username: String) async throws -> User {
         print("===== CREATING USER =====")
         print("Email: \(email)")
         print("Username: \(username)")
@@ -198,12 +82,12 @@ final class GistaService: GistaServiceProtocol {
         }
     }
     
-    func updateUser(userId: String, username: String, email: String) async throws -> Bool {
+    public func updateUser(userId: String, username: String, email: String) async throws -> Bool {
         // TODO: Implement actual user update
         return true
     }
     
-    func deleteUser(userId: String) async throws -> Bool {
+    public func deleteUser(userId: String) async throws -> Bool {
         // TODO: Implement actual user deletion
         return true
     }
@@ -226,7 +110,7 @@ extension GistaService {
      * - Returns: The created article with appropriate gist status
      * - Throws: GistaError if there's an issue with the request or response
      */
-    func storeArticle(userId: String, article: Article, autoCreateGist: Bool = true) async throws -> GistaServiceResponse {
+    public func storeArticle(userId: String, article: Article, autoCreateGist: Bool = true) async throws -> GistaServiceResponse {
         let endpoint = Endpoint.storeLink(
             userId: userId,
             category: article.category,
@@ -294,7 +178,7 @@ extension GistaService {
         }
     }
     
-    func updateArticleGistStatus(userId: String, articleId: String, gistId: String, imageUrl: String, title: String) async throws -> Article {
+    public func updateArticleGistStatus(userId: String, articleId: String, gistId: String, imageUrl: String, title: String) async throws -> Article {
         let endpoint = Endpoint.updateLinkGistStatus(
             userId: userId,
             linkId: articleId,
@@ -306,13 +190,13 @@ extension GistaService {
         return Article(from: response)
     }
     
-    func fetchArticles(userId: String) async throws -> [Article] {
+    public func fetchArticles(userId: String) async throws -> [Article] {
         let endpoint = Endpoint.fetchLinks(userId: userId)
         let response: ArticlesResponse = try await performRequest(endpoint)
         return response.articles.map { Article(from: $0) }
     }
     
-    func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) async throws -> Bool {
+    public func updateGistStatus(userId: String, gistId: String, status: GistStatus, isPlayed: Bool? = nil, ratings: Int? = nil) async throws -> Bool {
         print("Updating gist with ID: \(gistId) for user: \(userId)")
         print("Status: inProduction=\(status.inProduction), productionStatus=\(status.productionStatus)")
         if let isPlayed = isPlayed {
@@ -349,7 +233,7 @@ extension GistaService {
      * - Returns: True if the update was successful
      * - Throws: GistaError if there's an issue with the request or response
      */
-    func updateGistProductionStatus(userId: String, gistId: String) async throws -> Bool {
+    public func updateGistProductionStatus(userId: String, gistId: String) async throws -> Bool {
         print("🔄 STARTING: Update gist production status using signal-based approach")
         print("📋 Details: User ID: \(userId), Gist ID: \(gistId)")
         
@@ -413,13 +297,13 @@ extension GistaService {
         }
     }
     
-    func deleteGist(userId: String, gistId: String) async throws -> Bool {
+    public func deleteGist(userId: String, gistId: String) async throws -> Bool {
         let endpoint = Endpoint.deleteGist(userId: userId, gistId: gistId)
         let response: DeleteResponse = try await performRequest(endpoint)
         return response.message.contains("deleted successfully")
     }
     
-    func fetchGists(userId: String) async throws -> [Gist] {
+    public func fetchGists(userId: String) async throws -> [Gist] {
         let endpoint = Endpoint.fetchGists(userId: userId)
         do {
             let response: GistsResponse = try await performRequest(endpoint)
@@ -524,20 +408,20 @@ extension GistaService {
         }
     }
     
-    func fetchCategories() async throws -> [GistCategory] {
+    public func fetchCategories() async throws -> [GistCategory] {
         let response: GistaServiceCategories = try await performRequest(GistaService.Endpoint.fetchCategories)
         return response.categories
     }
     
-    func fetchCategory(slug: String) async throws -> GistCategory {
+    public func fetchCategory(slug: String) async throws -> GistCategory {
         return try await performRequest(GistaService.Endpoint.fetchCategory(slug: slug))
     }
     
-    func createCategory(name: String, tags: [String]) async throws -> GistCategory {
+    public func createCategory(name: String, tags: [String]) async throws -> GistCategory {
         return try await performRequest(GistaService.Endpoint.createCategory(name: name, tags: tags))
     }
     
-    func updateCategory(id: String, name: String?, tags: [String]?) async throws -> GistCategory {
+    public func updateCategory(id: String, name: String?, tags: [String]?) async throws -> GistCategory {
         return try await performRequest(GistaService.Endpoint.updateCategory(id: id, name: name, tags: tags))
     }
 }

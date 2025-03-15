@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import Shared
 
 struct ContentView: View {
     @EnvironmentObject private var navigationManager: NavigationManager
@@ -52,5 +53,6 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
             .environmentObject(NavigationManager())
+            .preferredColorScheme(ColorScheme.dark)
     }
 } 

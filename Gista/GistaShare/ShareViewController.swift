@@ -23,6 +23,13 @@ class ShareViewController: UIViewController {
     private var processingCount = 0
     private var processedURLs = Set<String>() // Store normalized URLs
     
+    // Add view model property
+    private lazy var viewModel = ShareViewControllerVM()
+    
+    // Current shared URL and title
+    private var currentURL: URL?
+    private var currentTitle: String?
+    
     private lazy var previewContainer: UIView = {
         let view = UIView()
         view.backgroundColor = .secondarySystemBackground
@@ -238,6 +245,10 @@ class ShareViewController: UIViewController {
     }
     
     private func handleURL(_ url: URL) {
+        // Store the current URL and title for later use
+        currentURL = url
+        currentTitle = url.lastPathComponent
+        
         updatePreview(for: SharedItemType.url, content: url.absoluteString)
         saveToAppGroup(["type": "url", "content": url.absoluteString])
     }
@@ -353,9 +364,56 @@ class ShareViewController: UIViewController {
     @objc private func createGistTapped() {
         Logger.log("Create Gist tapped", level: .debug)
         
-        // Since we've already processed and saved the items during initial load,
-        // we can just dismiss the extension
-        doneTapped()
+        // Check if we have a URL to process
+        guard let url = currentURL else {
+            Logger.log("No URL to process", level: .error)
+            doneTapped()
+            return
+        }
+        
+        // Show loading indicator
+        let activityIndicator = UIActivityIndicatorView(style: .medium)
+        activityIndicator.center = view.center
+        activityIndicator.startAnimating()
+        view.addSubview(activityIndicator)
+        
+        // Disable the create button while processing
+        createGistButton.isEnabled = false
+        
+        // Use the view model to store the link
+        Task {
+            let result = await viewModel.processSharedURL(url, title: currentTitle)
+            
+            // Handle the result
+            DispatchQueue.main.async {
+                // Remove loading indicator
+                activityIndicator.removeFromSuperview()
+                
+                switch result {
+                case .success(let response):
+                    Logger.log("Successfully created gist: \(response.message)", level: .debug)
+                    // Show success UI feedback if needed
+                    
+                    // Dismiss the extension
+                    self.doneTapped()
+                    
+                case .failure(let error):
+                    Logger.log("Failed to create gist: \(error.localizedDescription)", level: .error)
+                    
+                    // Show error UI feedback
+                    let alert = UIAlertController(
+                        title: "Error",
+                        message: "Failed to create gist: \(error.localizedDescription)",
+                        preferredStyle: .alert
+                    )
+                    alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                        // Dismiss the extension
+                        self.doneTapped()
+                    })
+                    self.present(alert, animated: true)
+                }
+            }
+        }
     }
     
     private func updatePreview(for type: SharedItemType, content: String, filename: String? = nil) {

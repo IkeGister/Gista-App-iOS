@@ -28,15 +28,16 @@ struct GistaApp: App {
             if startInTestMode {
                 // Start with the test view
                 GistaServiceTestView()
+                    .preferredColorScheme(ColorScheme.dark)
             } else {
                 // Start with the normal app
                 ContentView()
                     .environmentObject(sharedContentService)
                     .environmentObject(navigationManager)
-                    .preferredColorScheme(.dark)
                     .onAppear {
                         sharedContentService.checkForSharedContent()
                     }
+                    .preferredColorScheme(ColorScheme.dark)
             }
         }
     }

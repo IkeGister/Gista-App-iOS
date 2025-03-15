@@ -21,9 +21,11 @@ struct GistaApp: App {
             if onboardingViewModel.showLaunchScreen {
                 LaunchScreen.withOnboardingViewModel()
                     .environmentObject(onboardingViewModel)
+                    .preferredColorScheme(ColorScheme.dark)
             } else if !onboardingViewModel.isAuthenticated {
                 OnboardingView.withOnboardingViewModel()
                     .environmentObject(onboardingViewModel)
+                    .preferredColorScheme(ColorScheme.dark)
             } else {
                 ContentView()
                     .environmentObject(sharedContentService)
@@ -31,6 +33,7 @@ struct GistaApp: App {
                     .onAppear {
                         sharedContentService.checkForSharedContent()
                     }
+                    .preferredColorScheme(ColorScheme.dark)
             }
         }
     }

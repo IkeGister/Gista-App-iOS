@@ -9,22 +9,22 @@
 import SwiftUI
 import Foundation
 
-struct ArticleData: Codable {
-    let message: String
-    let link: LinkData
+public struct ArticleData: Codable {
+    public let message: String
+    public let link: LinkData
     
-    struct LinkData: Codable {
-        let category: String
-        let dateAdded: Date?
-        let gistCreated: ArticleGistStatus
+    public struct LinkData: Codable {
+        public let category: String
+        public let dateAdded: Date?
+        public let gistCreated: ArticleGistStatus
         
-        enum CodingKeys: String, CodingKey {
+        public enum CodingKeys: String, CodingKey {
             case category
             case dateAdded = "date_added"
             case gistCreated = "gist_created"
         }
         
-        init(from decoder: Decoder) throws {
+        public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             
             // Decode category
@@ -114,7 +114,7 @@ struct ArticleData: Codable {
         }
         
         // Define nested keys for gistCreated
-        enum GistCreatedKeys: String, CodingKey {
+        public enum GistCreatedKeys: String, CodingKey {
             case gistCreated = "gist_created"
             case gistId = "gist_id"
             case imageUrl = "image_url"

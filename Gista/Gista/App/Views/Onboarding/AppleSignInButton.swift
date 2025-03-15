@@ -13,6 +13,10 @@ struct AppleSignInButton<ViewModel: OnboardingViewModelProtocol>: View {
     @EnvironmentObject private var viewModel: ViewModel
     @Environment(\.colorScheme) private var colorScheme
     
+    // Store strong references to the delegate and presentation context provider
+    @State private var signInDelegate: AppleSignInDelegate<ViewModel>?
+    @State private var presentationContextProvider = AppleSignInPresentationContext()
+    
     var body: some View {
         Button(action: {
             handleAppleSignIn()
@@ -50,9 +54,12 @@ struct AppleSignInButton<ViewModel: OnboardingViewModelProtocol>: View {
         let nonce = viewModel.prepareForAppleSignIn()
         request.nonce = sha256(nonce)
         
+        // Create and store a strong reference to the delegate
+        signInDelegate = AppleSignInDelegate(viewModel: viewModel)
+        
         let authorizationController = ASAuthorizationController(authorizationRequests: [request])
-        authorizationController.delegate = AppleSignInDelegate(viewModel: viewModel)
-        authorizationController.presentationContextProvider = AppleSignInPresentationContext()
+        authorizationController.delegate = signInDelegate
+        authorizationController.presentationContextProvider = presentationContextProvider
         authorizationController.performRequests()
     }
     
@@ -106,7 +113,13 @@ class AppleSignInDelegate<ViewModel: OnboardingViewModelProtocol>: NSObject, ASA
 // Presentation Context Provider
 class AppleSignInPresentationContext: NSObject, ASAuthorizationControllerPresentationContextProviding {
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        return UIApplication.shared.windows.first { $0.isKeyWindow }!
+        // Get the active window scene and its first window
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            // Fallback for older iOS versions or if no window is found
+            return UIWindow()
+        }
+        return window
     }
 }
 
@@ -120,5 +133,6 @@ extension AppleSignInButton where ViewModel == OnboardingViewModel {
 #Preview("Apple Sign In Button") {
     AppleSignInButton<MockOnboardingViewModel>()
         .environmentObject(MockOnboardingViewModel())
+        .preferredColorScheme(.dark)
         .padding()
 } 
