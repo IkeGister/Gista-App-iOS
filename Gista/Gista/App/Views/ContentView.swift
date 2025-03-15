@@ -13,38 +13,58 @@ struct ContentView: View {
     @EnvironmentObject private var navigationManager: NavigationManager
     @State private var showTestView = false
     
+    // Using UserCredentials to manage user authentication state
+    @StateObject private var userCredentials = UserCredentials.shared
+    
     var body: some View {
-        LibraryView()
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        navigationManager.navigateToSettings()
-                    } label: {
-                        Image(systemName: "gear")
+        VStack {
+            // Switch statement to determine which view to show
+            if userCredentials.isAuthenticated {
+                // User is signed in and has a username
+                LibraryView()
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button {
+                                navigationManager.navigateToSettings()
+                            } label: {
+                                Image(systemName: "gear")
+                            }
+                        }
+                        
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button {
+                                navigationManager.navigateToProfile()
+                            } label: {
+                                Image(systemName: "person.circle")
+                            }
+                        }
+                        
+                        // Always show the debug button in simulator for testing
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button {
+                                showTestView = true
+                            } label: {
+                                Image(systemName: "hammer.circle")
+                                    .foregroundColor(.orange)
+                            }
+                        }
                     }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        navigationManager.navigateToProfile()
-                    } label: {
-                        Image(systemName: "person.circle")
+                    .sheet(isPresented: $showTestView) {
+                        GistaServiceTestView()
                     }
-                }
-                
-                // Always show the debug button in simulator for testing
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showTestView = true
-                    } label: {
-                        Image(systemName: "hammer.circle")
-                            .foregroundColor(.orange)
+            } else {
+                // User is not signed in or doesn't have a username
+                OnboardingView.withOnboardingViewModel()
+                    .onDisappear {
+                        // When onboarding completes, sync with UserConfiguration
+                        userCredentials.syncWithUserConfiguration()
                     }
-                }
             }
-            .sheet(isPresented: $showTestView) {
-                GistaServiceTestView()
-            }
+        }
+        .onAppear {
+            // Sync with UserConfiguration when view appears
+            userCredentials.syncWithUserConfiguration()
+        }
     }
 }
 

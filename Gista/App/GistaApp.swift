@@ -5,6 +5,7 @@ import UserNotifications
 struct GistaApp: App {
     @StateObject private var sharedContentService = SharedContentService()
     @StateObject private var onboardingViewModel = OnboardingViewModel()
+    @StateObject private var userCredentials = UserCredentials.shared
     
     init() {
         // Initialize Firebase
@@ -22,7 +23,7 @@ struct GistaApp: App {
                 LaunchScreen.withOnboardingViewModel()
                     .environmentObject(onboardingViewModel)
                     .preferredColorScheme(ColorScheme.dark)
-            } else if !onboardingViewModel.isAuthenticated {
+            } else if !userCredentials.isAuthenticated {
                 OnboardingView.withOnboardingViewModel()
                     .environmentObject(onboardingViewModel)
                     .preferredColorScheme(ColorScheme.dark)

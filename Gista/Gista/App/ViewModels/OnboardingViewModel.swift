@@ -44,26 +44,18 @@ class OnboardingViewModel: ObservableObject {
     
     // MARK: - Authentication Methods
     private func checkAuthenticationStatus() {
-        if let savedUser = UserStorage.shared.loadUser(), savedUser.isAuthenticated {
+        if let savedUser = UserConfiguration.shared.loadUser(), savedUser.isAuthenticated {
             self.user = savedUser
             self.isAuthenticated = true
             self.currentStep = .complete
-        } else if let firebaseUser = firebaseService.getCurrentUser() {
-            // User is authenticated in Firebase but not in our local storage
-            let user = User(
-                userId: firebaseUser.uid,
-                message: "User authenticated",
-                username: firebaseUser.displayName ?? "",
-                email: firebaseUser.email ?? "",
-                isAuthenticated: true,
-                lastLoginDate: Date()
-            )
-            self.user = user
-            self.isAuthenticated = true
-            self.currentStep = .complete
             
-            // Save user to local storage
-            UserStorage.shared.saveUser(user)
+            // Update UserCredentials
+            UserCredentials.shared.updateFrom(user: savedUser)
+        } else {
+            // If no authenticated user is found, show the launch screen briefly then proceed to onboarding
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                self.showLaunchScreen = false
+            }
         }
     }
     
@@ -80,7 +72,7 @@ class OnboardingViewModel: ObservableObject {
             self.currentStep = .complete
             
             // Save user to local storage
-            UserStorage.shared.saveUser(user)
+            saveUser(user)
         }
         
         guard validateSignupForm() else { return }
@@ -136,7 +128,7 @@ class OnboardingViewModel: ObservableObject {
             self.currentStep = .complete
             
             // Save user to local storage
-            UserStorage.shared.saveUser(user)
+            saveUser(user)
         }
         
         guard validateSignInForm() else { return }
@@ -174,7 +166,7 @@ class OnboardingViewModel: ObservableObject {
                 self.currentStep = .welcome
                 
                 // Clear user from local storage
-                UserStorage.shared.clearUser()
+                clearUser()
             }
             
             if let errorMessage = errorMessage {
@@ -330,7 +322,7 @@ class OnboardingViewModel: ObservableObject {
             self.currentStep = .complete
             
             // Save user to local storage
-            UserStorage.shared.saveUser(user)
+            saveUser(user)
         }
         
         @MainActor func getRootViewController() throws -> UIViewController {
@@ -391,7 +383,7 @@ class OnboardingViewModel: ObservableObject {
             self.currentStep = .complete
             
             // Save user to local storage
-            UserStorage.shared.saveUser(user)
+            saveUser(user)
         }
         
         guard let nonce = currentNonce else {
@@ -425,6 +417,43 @@ class OnboardingViewModel: ObservableObject {
             // Handle error on main actor
             await updateLoadingState(isLoading: false, errorMessage: error.localizedDescription, showError: true)
         }
+    }
+    
+    // MARK: - Apple Sign In
+    func processAppleSignInResult(userId: String, email: String?, fullName: PersonNameComponents?) {
+        // Create a username from the full name if available
+        let username = [fullName?.givenName, fullName?.familyName]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        
+        // Create a user object
+        let user = User(
+            userId: userId,
+            message: "User authenticated with Apple",
+            username: username,
+            email: email ?? "",
+            isAuthenticated: true,
+            lastLoginDate: Date()
+        )
+        
+        // Update the view model
+        self.user = user
+        self.isAuthenticated = true
+        self.currentStep = .complete
+        
+        // Save user to local storage
+        saveUser(user)
+    }
+    
+    // MARK: - Helper Methods
+    private func saveUser(_ user: User) {
+        UserConfiguration.shared.saveUser(user)
+        UserCredentials.shared.updateFrom(user: user)
+    }
+    
+    private func clearUser() {
+        UserConfiguration.shared.clearUser()
+        UserCredentials.shared.clearCredentials()
     }
 }
 

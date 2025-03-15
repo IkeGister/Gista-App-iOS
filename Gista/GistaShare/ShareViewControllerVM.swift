@@ -42,7 +42,7 @@ class ShareViewControllerVM {
     }
     
     // MARK: - Process Shared URL
-    func processSharedURL(_ url: URL, title: String? = nil) async -> Result<LinkSender.LinkResponse, Error> {
+    func processSharedURL(_ url: URL, title: String? = nil) async -> Result<LinkResponse, Error> {
         // Extract title from URL if not provided
         let urlTitle = title ?? url.lastPathComponent
         
@@ -52,7 +52,7 @@ class ShareViewControllerVM {
         // Send the link
         guard let userId = self.userId else {
             Logger.log("No userId available", level: .error)
-            return .failure(LinkSender.LinkError.unauthorized)
+            return .failure(LinkError.unauthorized)
         }
         
         // Map the specific LinkSender.LinkError to the more general Error type
