@@ -40,6 +40,7 @@ struct GistaApp: App {
             } else {
                 ContentView()
                     .environmentObject(sharedContentService)
+                    .environmentObject(navigationManager)
                     .environmentObject(onboardingViewModel)
                     .onAppear {
                         sharedContentService.checkForSharedContent()
