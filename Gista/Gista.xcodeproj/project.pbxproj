@@ -15,7 +15,6 @@
 		0B432CE42D27432F00A5105D /* Shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0B432CE82D27433A00A5105D /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0B432CC32D27431B00A5105D /* Shared.framework */; };
 		0B54D6BE2D4AA8FE00757F77 /* API-Documentation.md in Resources */ = {isa = PBXBuildFile; fileRef = 0B54D6BD2D4AA8FE00757F77 /* API-Documentation.md */; };
-		0B8DC94F2D84BF86001137B7 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 0B8DC94E2D84BF86001137B7 /* GoogleService-Info.plist */; };
 		0B8DC9522D84C001001137B7 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0B8DC9512D84C001001137B7 /* FirebaseAnalytics */; };
 		0B8DC9542D84C001001137B7 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 0B8DC9532D84C001001137B7 /* FirebaseAuth */; };
 		0B8DC9562D84C001001137B7 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0B8DC9552D84C001001137B7 /* FirebaseCrashlytics */; };
@@ -137,7 +136,6 @@
 		0B432CC32D27431B00A5105D /* Shared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Shared.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0B432CCC2D27431B00A5105D /* SharedTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SharedTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0B54D6BD2D4AA8FE00757F77 /* API-Documentation.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "API-Documentation.md"; sourceTree = "<group>"; };
-		0B8DC94E2D84BF86001137B7 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -308,7 +306,6 @@
 		0B432C252D2729B300A5105D = {
 			isa = PBXGroup;
 			children = (
-				0B8DC94E2D84BF86001137B7 /* GoogleService-Info.plist */,
 				0B432C302D2729B300A5105D /* Gista */,
 				0B432C452D2729B600A5105D /* GistaTests */,
 				0B432C4F2D2729B600A5105D /* GistaUITests */,
@@ -571,7 +568,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0B8DC94F2D84BF86001137B7 /* GoogleService-Info.plist in Resources */,
 				0B54D6BE2D4AA8FE00757F77 /* API-Documentation.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

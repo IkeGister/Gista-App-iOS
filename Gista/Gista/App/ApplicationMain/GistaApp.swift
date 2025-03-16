@@ -12,11 +12,15 @@ import UserNotifications
 struct GistaApp: App {
     @StateObject private var sharedContentService = SharedContentService.shared
     @StateObject private var navigationManager = NavigationManager()
+    @StateObject private var onboardingViewModel = OnboardingViewModel()
+    @StateObject private var userCredentials = UserCredentials.shared
     
     // Set this to true to start the app in test mode
     private let startInTestMode = false
     
     init() {
+        // Initialize Firebase
+        FirebaseService.shared.initialize()
         // Request notification permissions
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             print("Notification permission granted: \(granted)")
@@ -25,15 +29,18 @@ struct GistaApp: App {
     
     var body: some Scene {
         WindowGroup {
-            if startInTestMode {
-                // Start with the test view
-                GistaServiceTestView()
+            if onboardingViewModel.showLaunchScreen {
+                LaunchScreen.withOnboardingViewModel()
+                    .environmentObject(onboardingViewModel)
+                    .preferredColorScheme(ColorScheme.dark)
+            } else if !userCredentials.isAuthenticated {
+                OnboardingView.withOnboardingViewModel()
+                    .environmentObject(onboardingViewModel)
                     .preferredColorScheme(ColorScheme.dark)
             } else {
-                // Start with the normal app
                 ContentView()
                     .environmentObject(sharedContentService)
-                    .environmentObject(navigationManager)
+                    .environmentObject(onboardingViewModel)
                     .onAppear {
                         sharedContentService.checkForSharedContent()
                     }

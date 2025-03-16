@@ -51,12 +51,11 @@ class OnboardingViewModel: ObservableObject {
             
             // Update UserCredentials
             UserCredentials.shared.updateFrom(user: savedUser)
-        } else {
-            // If no authenticated user is found, show the launch screen briefly then proceed to onboarding
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.showLaunchScreen = false
-            }
         }
+        
+        // Always show the launch screen during development
+        // This ensures the debug options are always available on startup
+        self.showLaunchScreen = true
     }
     
     func createAccount() async {
@@ -190,9 +189,11 @@ class OnboardingViewModel: ObservableObject {
     
     func launchApp(useTestAPI: Bool = false) {
         self.useTestAPI = useTestAPI
+        
+        // Explicitly dismiss the launch screen when a button is tapped
         dismissLaunchScreen()
         
-        // If user is already authenticated, skip onboarding
+        // Set the appropriate next step
         if isAuthenticated {
             currentStep = .complete
         } else {
@@ -370,7 +371,7 @@ class OnboardingViewModel: ObservableObject {
         return nonce
     }
     
-    func signInWithApple(idTokenString: String) async {
+    func signInWithApple(idTokenString: String, fullName: PersonNameComponents? = nil) async {
         @MainActor func updateLoadingState(isLoading: Bool, errorMessage: String? = nil, showError: Bool = false) {
             self.isLoading = isLoading
             self.errorMessage = errorMessage
@@ -396,7 +397,7 @@ class OnboardingViewModel: ObservableObject {
         
         do {
             // Sign in with Apple
-            let firebaseUser = try await firebaseService.signInWithApple(nonce: nonce, idTokenString: idTokenString)
+            let firebaseUser = try await firebaseService.signInWithApple(nonce: nonce, idTokenString: idTokenString, fullName: fullName)
             
             // Create and save user object
             let user = User(
@@ -443,6 +444,8 @@ class OnboardingViewModel: ObservableObject {
         
         // Save user to local storage
         saveUser(user)
+        
+        print("Saved Apple user with name: \(username)")
     }
     
     // MARK: - Helper Methods
