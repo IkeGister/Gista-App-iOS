@@ -23,6 +23,33 @@ class ShareViewController: UIViewController {
     private var processingCount = 0
     private var processedURLs = Set<String>() // Store normalized URLs
     
+    // Add loading state
+    private var isLoading = false {
+        didSet {
+            updateLoadingState()
+        }
+    }
+    
+    // Add loading indicator
+    private lazy var loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .medium)
+        indicator.hidesWhenStopped = true
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        return indicator
+    }()
+    
+    // Add error label
+    private lazy var errorLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = .systemRed
+        label.font = .systemFont(ofSize: 14)
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.isHidden = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     // Add view model property
     private lazy var viewModel = ShareViewControllerVM()
     
@@ -107,6 +134,8 @@ class ShareViewController: UIViewController {
         previewContainer.addSubview(titleLabel)
         previewContainer.addSubview(urlLabel)
         previewContainer.addSubview(createGistButton)
+        previewContainer.addSubview(loadingIndicator)
+        previewContainer.addSubview(errorLabel)
         
         NSLayoutConstraint.activate([
             // Container constraints
@@ -136,7 +165,17 @@ class ShareViewController: UIViewController {
             createGistButton.leadingAnchor.constraint(equalTo: previewContainer.leadingAnchor, constant: 16),
             createGistButton.trailingAnchor.constraint(equalTo: previewContainer.trailingAnchor, constant: -16),
             createGistButton.bottomAnchor.constraint(equalTo: previewContainer.bottomAnchor, constant: -16),
-            createGistButton.heightAnchor.constraint(equalToConstant: 44)
+            createGistButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            // Loading indicator constraints
+            loadingIndicator.centerYAnchor.constraint(equalTo: createGistButton.centerYAnchor),
+            loadingIndicator.trailingAnchor.constraint(equalTo: createGistButton.leadingAnchor, constant: -8),
+            
+            // Error label constraints
+            errorLabel.topAnchor.constraint(equalTo: createGistButton.bottomAnchor, constant: 8),
+            errorLabel.leadingAnchor.constraint(equalTo: previewContainer.leadingAnchor, constant: 16),
+            errorLabel.trailingAnchor.constraint(equalTo: previewContainer.trailingAnchor, constant: -16),
+            errorLabel.bottomAnchor.constraint(lessThanOrEqualTo: previewContainer.bottomAnchor, constant: -16)
         ])
     }
     
@@ -330,12 +369,26 @@ class ShareViewController: UIViewController {
         Logger.log("Share Extension: Successfully wrote to App Group", level: .debug)
     }
     
-    // Optional: Add a loading indicator
-    private func showLoading() {
-        let activityIndicator = UIActivityIndicatorView(style: .medium)
-        activityIndicator.center = view.center
-        activityIndicator.startAnimating()
-        view.addSubview(activityIndicator)
+    private func updateLoadingState() {
+        if isLoading {
+            loadingIndicator.startAnimating()
+            createGistButton.configuration?.showsActivityIndicator = true
+            createGistButton.isEnabled = false
+        } else {
+            loadingIndicator.stopAnimating()
+            createGistButton.configuration?.showsActivityIndicator = false
+            createGistButton.isEnabled = true
+        }
+    }
+    
+    private func showError(_ message: String) {
+        errorLabel.text = message
+        errorLabel.isHidden = false
+        
+        // Automatically hide error after 5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.errorLabel.isHidden = true
+        }
     }
     
     private func normalizeURL(_ url: URL) -> URL? {
@@ -362,55 +415,55 @@ class ShareViewController: UIViewController {
     }
     
     @objc private func createGistTapped() {
-        Logger.log("Create Gist tapped", level: .debug)
-        
-        // Check if we have a URL to process
-        guard let url = currentURL else {
-            Logger.log("No URL to process", level: .error)
-            doneTapped()
+        guard let currentURL = currentURL else {
+            showError("No URL available to create gist")
             return
         }
         
-        // Show loading indicator
-        let activityIndicator = UIActivityIndicatorView(style: .medium)
-        activityIndicator.center = view.center
-        activityIndicator.startAnimating()
-        view.addSubview(activityIndicator)
+        // Show loading state
+        isLoading = true
+        errorLabel.isHidden = true
         
-        // Disable the create button while processing
-        createGistButton.isEnabled = false
-        
-        // Use the view model to store the link
+        // Process the URL
         Task {
-            let result = await viewModel.processSharedURL(url, title: currentTitle)
+            let result = await viewModel.processSharedURL(currentURL, title: currentTitle)
             
-            // Handle the result
-            DispatchQueue.main.async {
-                // Remove loading indicator
-                activityIndicator.removeFromSuperview()
+            // Update UI on main thread
+            await MainActor.run {
+                isLoading = false
                 
                 switch result {
                 case .success(let response):
-                    Logger.log("Successfully created gist: \(response.message)", level: .debug)
-                    // Show success UI feedback if needed
-                    
-                    // Dismiss the extension
-                    self.doneTapped()
+                    if response.success {
+                        // Show success feedback
+                        createGistButton.configuration?.title = "Gist Created!"
+                        createGistButton.configuration?.baseBackgroundColor = .systemGreen
+                        
+                        // Reset button after delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                            self?.createGistButton.configuration?.title = "Create Gist"
+                            self?.createGistButton.configuration?.baseBackgroundColor = nil
+                            self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+                        }
+                    } else {
+                        showError("Failed to create gist: \(response.message)")
+                    }
                     
                 case .failure(let error):
-                    Logger.log("Failed to create gist: \(error.localizedDescription)", level: .error)
-                    
-                    // Show error UI feedback
-                    let alert = UIAlertController(
-                        title: "Error",
-                        message: "Failed to create gist: \(error.localizedDescription)",
-                        preferredStyle: .alert
-                    )
-                    alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-                        // Dismiss the extension
-                        self.doneTapped()
-                    })
-                    self.present(alert, animated: true)
+                    let errorMessage: String
+                    switch error {
+                    case .noInternetConnection:
+                        errorMessage = "No internet connection"
+                    case .timeoutError:
+                        errorMessage = "Request timed out"
+                    case .unauthorized:
+                        errorMessage = "Authentication required"
+                    case .apiError(_, let message):
+                        errorMessage = message
+                    default:
+                        errorMessage = "Failed to create gist"
+                    }
+                    showError(errorMessage)
                 }
             }
         }

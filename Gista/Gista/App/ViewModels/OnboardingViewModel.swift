@@ -397,7 +397,7 @@ class OnboardingViewModel: ObservableObject {
         
         do {
             // Sign in with Apple
-            let firebaseUser = try await firebaseService.signInWithApple(nonce: nonce, idTokenString: idTokenString, fullName: fullName)
+            let firebaseUser = try await firebaseService.signInWithApple(nonce: nonce, idTokenString: idTokenString)
             
             // Create and save user object
             let user = User(
@@ -414,6 +414,11 @@ class OnboardingViewModel: ObservableObject {
             
             // Update user state on main actor
             await updateUserState(user: user)
+            
+            // If we have a name, process it separately
+            if let fullName = fullName {
+                processAppleSignInResult(userId: firebaseUser.uid, email: firebaseUser.email, fullName: fullName)
+            }
         } catch {
             // Handle error on main actor
             await updateLoadingState(isLoading: false, errorMessage: error.localizedDescription, showError: true)

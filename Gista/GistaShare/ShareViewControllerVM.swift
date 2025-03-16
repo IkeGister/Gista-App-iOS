@@ -15,17 +15,19 @@ class ShareViewControllerVM {
     private let linkSender: LinkSender
     private var userId: String?
     
+    // Add validation properties
+    private let validSchemes = ["http", "https"]
+    private let maxTitleLength = 255
+    private let maxUrlLength = 2048
+    
     // MARK: - Initialization
     init(linkSender: LinkSender = LinkSender()) {
         self.linkSender = linkSender
-        // Try to load userId from UserDefaults or keychain in a real implementation
         loadUserId()
     }
     
     // MARK: - User ID Management
     private func loadUserId() {
-        // In a real implementation, this would load from secure storage
-        // For now, we'll check if there's a userId in the app group UserDefaults
         guard let userDefaults = UserDefaults(suiteName: ShareExtensionConstants.appGroupId) else {
             Logger.log("Failed to access App Group UserDefaults", level: .error)
             return
@@ -35,38 +37,120 @@ class ShareViewControllerVM {
             Logger.log("Loaded userId from App Group: \(storedUserId)", level: .debug)
             self.userId = storedUserId
         } else {
-            // For testing purposes only - in production, you'd require proper authentication
-            Logger.log("No userId found in App Group, using default test ID", level: .warning)
-            self.userId = "test_user_id" // Replace with your test user ID
+            Logger.log("No userId found in App Group", level: .error)
+            // Don't set a default userId in production - require proper authentication
+        }
+    }
+    
+    // MARK: - URL Validation
+    private func validateURL(_ url: URL) -> Result<URL, LinkError> {
+        // Check URL scheme
+        guard let scheme = url.scheme?.lowercased(),
+              validSchemes.contains(scheme) else {
+            return .failure(.invalidURL)
+        }
+        
+        // Check URL length
+        guard url.absoluteString.count <= maxUrlLength else {
+            return .failure(.invalidURL)
+        }
+        
+        // Check if URL is reachable (optional)
+        return .success(url)
+    }
+    
+    // MARK: - Title Validation
+    private func validateTitle(_ title: String?) -> String {
+        let sanitizedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if sanitizedTitle.isEmpty {
+            return "Untitled"
+        }
+        return String(sanitizedTitle.prefix(maxTitleLength))
+    }
+    
+    // MARK: - Category Detection
+    private func determineCategoryFromURL(_ url: URL) -> String {
+        let host = url.host?.lowercased() ?? ""
+        
+        // Add more sophisticated category detection logic
+        switch host {
+        case _ where host.contains("github"):
+            return "Development"
+        case _ where host.contains("stackoverflow"):
+            return "Development"
+        case _ where host.contains("medium"):
+            return "Article"
+        case _ where host.contains("youtube"):
+            return "Video"
+        case _ where host.contains("twitter") || host.contains("x.com"):
+            return "Social"
+        default:
+            // Try to determine category from path components or query parameters
+            let path = url.path.lowercased()
+            if path.contains("blog") || path.contains("article") {
+                return "Article"
+            }
+            return "Uncategorized"
         }
     }
     
     // MARK: - Process Shared URL
-    func processSharedURL(_ url: URL, title: String? = nil) async -> Result<LinkResponse, Error> {
-        // Extract title from URL if not provided
-        let urlTitle = title ?? url.lastPathComponent
-        
-        // Determine category based on URL or default to "Uncategorized"
-        let category = determineCategoryFromURL(url)
-        
-        // Send the link
+    func processSharedURL(_ url: URL, title: String? = nil) async -> Result<LinkResponse, LinkError> {
+        // Validate user authentication
         guard let userId = self.userId else {
             Logger.log("No userId available", level: .error)
-            return .failure(LinkError.unauthorized)
+            return .failure(.unauthorized)
         }
         
-        // Map the specific LinkSender.LinkError to the more general Error type
-        let result = await linkSender.sendLink(userId: userId, url: url, title: urlTitle, category: category)
-        switch result {
-        case .success(let response):
-            return .success(response)
+        // Validate URL
+        let urlValidation = validateURL(url)
+        switch urlValidation {
         case .failure(let error):
             return .failure(error)
+        case .success(let validatedURL):
+            // Validate and sanitize title
+            let sanitizedTitle = validateTitle(title)
+            
+            // Determine category
+            let category = determineCategoryFromURL(validatedURL)
+            
+            // Attempt to send link with retry logic
+            var attempts = 0
+            let maxAttempts = 3
+            
+            while attempts < maxAttempts {
+                attempts += 1
+                
+                let result = await linkSender.sendLink(
+                    userId: userId,
+                    url: validatedURL,
+                    title: sanitizedTitle,
+                    category: category
+                )
+                
+                switch result {
+                case .success(let response):
+                    return .success(response)
+                case .failure(let error):
+                    // Only retry on network errors
+                    if case .networkError = error, attempts < maxAttempts {
+                        // Add exponential backoff
+                        try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempts)) * 1_000_000_000))
+                        continue
+                    }
+                    return .failure(error)
+                }
+            }
+            
+            return .failure(.networkError)
         }
     }
-    
-    // Helper method to determine category from URL
-    private func determineCategoryFromURL(_ url: URL) -> String {
-        return "Uncategorized"
+}
+
+// MARK: - Constants
+private extension ShareViewControllerVM {
+    enum Constants {
+        static let maxRetryAttempts = 3
+        static let baseRetryDelay: TimeInterval = 1.0
     }
 }
