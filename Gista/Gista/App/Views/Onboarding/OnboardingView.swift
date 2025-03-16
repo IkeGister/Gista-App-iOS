@@ -28,7 +28,7 @@ protocol OnboardingViewModelProtocol: ObservableObject {
     func goToSignUp()
     func signInWithGoogle() async
     func prepareForAppleSignIn() -> String
-    func signInWithApple(idTokenString: String) async
+    func signInWithApple(idTokenString: String, fullName: PersonNameComponents?) async
     func setError(_ message: String)
 }
 
@@ -689,7 +689,7 @@ class MockOnboardingViewModel: OnboardingViewModelProtocol {
         return "mock_nonce_for_apple_sign_in_123456789"
     }
     
-    func signInWithApple(idTokenString: String) async {
+    func signInWithApple(idTokenString: String, fullName: PersonNameComponents?) async {
         print("Mock sign in with Apple using token: \(idTokenString)")
         // Simulate successful sign-in
         self.currentStep = .complete

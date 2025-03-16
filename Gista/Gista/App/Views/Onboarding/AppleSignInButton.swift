@@ -91,7 +91,7 @@ class AppleSignInDelegate<ViewModel: OnboardingViewModelProtocol>: NSObject, ASA
             
             // Process the Apple ID credential
             Task {
-                await viewModel.signInWithApple(idTokenString: idTokenString)
+                await viewModel.signInWithApple(idTokenString: idTokenString, fullName: appleIDCredential.fullName)
                 
                 // If we have a name, update the user's profile
                 if let fullName = appleIDCredential.fullName,
