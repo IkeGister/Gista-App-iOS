@@ -107,7 +107,8 @@ struct LibraryView: View {
             .padding(.bottom, 8)
         }
         .background(Color("extBackgroundColor").gradient)
-        .navigationTitle("Your Library")
+        .navigationTitle("Your Gists")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {

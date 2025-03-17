@@ -46,6 +46,7 @@ struct AppleSignInButton<ViewModel: OnboardingViewModelProtocol>: View {
         }
     }
     
+    @MainActor
     private func handleAppleSignIn() {
         let request = ASAuthorizationAppleIDProvider().createRequest()
         request.requestedScopes = [.fullName, .email]
@@ -76,6 +77,7 @@ struct AppleSignInButton<ViewModel: OnboardingViewModelProtocol>: View {
 }
 
 // Apple Sign In Delegate
+@MainActor
 class AppleSignInDelegate<ViewModel: OnboardingViewModelProtocol>: NSObject, ASAuthorizationControllerDelegate {
     private var viewModel: ViewModel
     
@@ -112,6 +114,7 @@ class AppleSignInDelegate<ViewModel: OnboardingViewModelProtocol>: NSObject, ASA
 
 // Presentation Context Provider
 class AppleSignInPresentationContext: NSObject, ASAuthorizationControllerPresentationContextProviding {
+    @MainActor
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         // Get the active window scene and its first window
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

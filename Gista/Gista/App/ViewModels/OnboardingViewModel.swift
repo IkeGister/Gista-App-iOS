@@ -51,6 +51,12 @@ class OnboardingViewModel: ObservableObject {
             
             // Update UserCredentials
             UserCredentials.shared.updateFrom(user: savedUser)
+            
+            print("DEBUG: User authenticated from saved data - \(savedUser.username)")
+        } else {
+            // Ensure we're not authenticated if no valid user is found
+            self.isAuthenticated = false
+            print("DEBUG: No authenticated user found")
         }
         
         // Always show the launch screen during development
@@ -195,10 +201,35 @@ class OnboardingViewModel: ObservableObject {
         
         // Set the appropriate next step
         if isAuthenticated {
+            print("DEBUG: User is authenticated, proceeding to complete step")
             currentStep = .complete
         } else {
+            print("DEBUG: User is not authenticated, proceeding to welcome step")
             currentStep = .welcome
         }
+    }
+    
+    func bypassAuthentication() {
+        // Create a test user
+        let testUser = User(
+            userId: UUID().uuidString,
+            message: "Test user created",
+            username: "TestUser",
+            email: "test@example.com",
+            isAuthenticated: true,
+            lastLoginDate: Date()
+        )
+        
+        // Update user state
+        self.user = testUser
+        self.isAuthenticated = true
+        self.currentStep = .complete
+        
+        // Save user to local storage
+        saveUser(testUser)
+        
+        // Dismiss the launch screen
+        dismissLaunchScreen()
     }
     
     // MARK: - Navigation Methods
@@ -326,22 +357,11 @@ class OnboardingViewModel: ObservableObject {
             saveUser(user)
         }
         
-        @MainActor func getRootViewController() throws -> UIViewController {
-            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                  let rootViewController = windowScene.windows.first?.rootViewController else {
-                throw NSError(domain: "OnboardingViewModel", code: 0, userInfo: [NSLocalizedDescriptionKey: "No root view controller found"])
-            }
-            return rootViewController
-        }
-        
         // Set loading state
         await updateLoadingState(isLoading: true)
         
         do {
-            // Get the root view controller using the modern approach
-            let rootViewController = try await getRootViewController()
-            
-            // Sign in with Google
+            // Sign in with Google using the provided rootViewController
             let firebaseUser = try await firebaseService.signInWithGoogle(presenting: rootViewController)
             
             // Create and save user object

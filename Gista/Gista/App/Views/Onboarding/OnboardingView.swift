@@ -711,6 +711,7 @@ struct OnboardingView_Previews: PreviewProvider {
 }
 
 // Helper function to get root view controller
+@MainActor
 private func getRootViewController() -> UIViewController? {
     guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
           let rootViewController = windowScene.windows.first?.rootViewController else {

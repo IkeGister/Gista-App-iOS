@@ -23,29 +23,31 @@ struct ContentView: View {
                 // User is signed in and has a username
                 LibraryView()
                     .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button {
-                                navigationManager.navigateToSettings()
-                            } label: {
-                                Image(systemName: "gear")
-                            }
-                        }
-                        
-                        ToolbarItem(placement: .navigationBarTrailing) {
+                        ToolbarItem(placement: .navigationBarLeading) {
                             Button {
                                 navigationManager.navigateToProfile()
                             } label: {
-                                Image(systemName: "person.circle")
+                                HStack(alignment: .center, spacing: 6) {
+                                    Image(systemName: "person.circle.fill")
+                                        .font(.system(size: 26))
+                                        .foregroundColor(.yellow)
+                                        .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 1)
+                                    
+                                    Text(userCredentials.username)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.yellow)
+                                }
+                                .alignmentGuide(.firstTextBaseline) { d in d[.firstTextBaseline] }
                             }
                         }
                         
-                        // Always show the debug button in simulator for testing
-                        ToolbarItem(placement: .navigationBarLeading) {
+                        ToolbarItem(placement: .navigationBarTrailing) {
                             Button {
-                                showTestView = true
+                                navigationManager.navigateToSearch()
                             } label: {
-                                Image(systemName: "hammer.circle")
-                                    .foregroundColor(.orange)
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.yellow)
                             }
                         }
                     }

@@ -15,6 +15,7 @@ import SwiftUI
 // Protocol that defines the interface needed by LaunchScreen
 protocol LaunchScreenViewModel: ObservableObject {
     func launchApp(useTestAPI: Bool)
+    func bypassAuthentication()
 }
 
 // Make OnboardingViewModel conform to LaunchScreenViewModel
@@ -86,13 +87,17 @@ struct LaunchScreen<ViewModel: LaunchScreenViewModel>: View {
             Spacer()
             
             if showButtons {
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     actionButton(title: "Test APIs", color: .blue) {
                         viewModel.launchApp(useTestAPI: true)
                     }
                     
                     actionButton(title: "Launch App", color: .green) {
                         viewModel.launchApp(useTestAPI: false)
+                    }
+                    
+                    actionButton(title: "Skip Sign Up", color: .orange) {
+                        viewModel.bypassAuthentication()
                     }
                 }
                 .padding(.bottom, 50)
@@ -107,8 +112,8 @@ struct LaunchScreen<ViewModel: LaunchScreenViewModel>: View {
             Text(title)
                 .font(.headline)
                 .foregroundColor(.white)
-                .frame(width: 200)
-                .padding(.vertical, 12)
+                .frame(width: 180)
+                .padding(.vertical, 10)
                 .background(color)
                 .cornerRadius(10)
                 .shadow(color: .black.opacity(0.5), radius: 6, x: 0, y: 4)
@@ -120,6 +125,10 @@ struct LaunchScreen<ViewModel: LaunchScreenViewModel>: View {
 class MockLaunchScreenViewModel: LaunchScreenViewModel {
     func launchApp(useTestAPI: Bool) {
         print("Launch app with useTestAPI: \(useTestAPI)")
+    }
+    
+    func bypassAuthentication() {
+        print("Bypassing authentication")
     }
 }
 

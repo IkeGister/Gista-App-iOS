@@ -14,7 +14,7 @@ class UserCredentials: ObservableObject {
     static let shared = UserCredentials()
     
     // MARK: - Published Properties with AppStorage
-    @AppStorage("isSignedIn") var isSignedIn: Bool = true // Default to true for now
+    @AppStorage("isSignedIn") var isSignedIn: Bool = false // Changed default to false
     @AppStorage("userId") var userId: String = ""
     @AppStorage("username") var username: String = ""
     @AppStorage("userEmail") var userEmail: String = ""
@@ -36,20 +36,26 @@ class UserCredentials: ObservableObject {
     /// Updates the credentials from a User object
     /// - Parameter user: The user object to update from
     func updateFrom(user: User) {
-        isSignedIn = user.isAuthenticated
-        userId = user.userId
-        username = user.username
-        userEmail = user.email
-        profilePictureUrl = user.profilePictureUrl ?? ""
+        // Use DispatchQueue.main.async to avoid publishing changes during view updates
+        DispatchQueue.main.async {
+            self.isSignedIn = user.isAuthenticated
+            self.userId = user.userId
+            self.username = user.username
+            self.userEmail = user.email
+            self.profilePictureUrl = user.profilePictureUrl ?? ""
+        }
     }
     
     /// Clears all user credentials
     func clearCredentials() {
-        isSignedIn = false
-        userId = ""
-        username = ""
-        userEmail = ""
-        profilePictureUrl = ""
+        // Use DispatchQueue.main.async to avoid publishing changes during view updates
+        DispatchQueue.main.async {
+            self.isSignedIn = false
+            self.userId = ""
+            self.username = ""
+            self.userEmail = ""
+            self.profilePictureUrl = ""
+        }
     }
     
     /// Creates a User object from the current credentials
@@ -69,6 +75,16 @@ class UserCredentials: ObservableObject {
     func syncWithUserConfiguration() {
         if let user = UserConfiguration.shared.loadUser() {
             updateFrom(user: user)
+        } else {
+            // Ensure we're not authenticated if no user is found
+            // Use DispatchQueue.main.async to avoid publishing changes during view updates
+            DispatchQueue.main.async {
+                self.isSignedIn = false
+                self.userId = ""
+                self.username = ""
+                self.userEmail = ""
+                self.profilePictureUrl = ""
+            }
         }
     }
     

@@ -87,6 +87,7 @@ class FirebaseService: FirebaseAuthServiceProtocol {
         try await user.updatePassword(to: password)
     }
     
+    @MainActor
     func signInWithGoogle(presenting viewController: UIViewController) async throws -> FirebaseAuth.User {
         // Get Google Sign In configuration
         guard let clientID = FirebaseApp.app()?.options.clientID else {
@@ -126,6 +127,7 @@ class FirebaseService: FirebaseAuthServiceProtocol {
         return authResult.user
     }
     
+    @MainActor
     func signInWithApple(nonce: String, idTokenString: String) async throws -> FirebaseAuth.User {
         // Create a Firebase credential with the Apple ID token
         let credential = OAuthProvider.appleCredential(
