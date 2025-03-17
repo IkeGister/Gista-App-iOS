@@ -112,7 +112,7 @@ struct LibraryView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
-                    navigationManager.showingProfile = true
+                    navigationManager.navigateToProfile()
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "person.circle.fill")

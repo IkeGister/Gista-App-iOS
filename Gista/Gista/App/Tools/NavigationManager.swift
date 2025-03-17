@@ -40,7 +40,7 @@ class NavigationManager: ObservableObject {
     }
     
     func navigateToProfile() {
-        showingProfile = true
+        navigationPath.append(.userProfile)
     }
     
     func navigateToSearch() {
@@ -87,9 +87,6 @@ struct NavigationStackContainer: ViewModifier {
                 }
                 .sheet(isPresented: $navigationManager.showingSettings) {
                     Settings()
-                }
-                .sheet(isPresented: $navigationManager.showingProfile) {
-                    UserProfile()
                 }
         }
         .environmentObject(navigationManager)
