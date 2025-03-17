@@ -24,10 +24,13 @@ struct LibraryView: View {
         
         // Customize Tab Bar appearance
         let appearance = UITabBarAppearance()
-        appearance.backgroundColor = .systemBackground
-        appearance.shadowColor = .clear // Remove default shadow
-        appearance.stackedLayoutAppearance.normal.iconColor = .gray
-        appearance.stackedLayoutAppearance.selected.iconColor = .blue
+        appearance.configureWithTransparentBackground() // Remove default background
+        appearance.backgroundColor = .clear
+        appearance.shadowColor = .clear
+        appearance.stackedLayoutAppearance.normal.iconColor = .white.withAlphaComponent(0.6)
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.white.withAlphaComponent(0.6)]
+        appearance.stackedLayoutAppearance.selected.iconColor = .systemYellow
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.systemYellow]
         
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
@@ -37,19 +40,19 @@ struct LibraryView: View {
         TabView(selection: $selectedTab) {
             mainContent
                 .tabItem {
-                    Label("Library", systemImage: "books.vertical")
+                    Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
+            
+            MyStudioView()
+                .tabItem {
+                    Label("My Studio", systemImage: "slider.horizontal.3")
+                }
+                .tag(1)
             
             MyResourcesView()
                 .tabItem {
                     Label("Resources", systemImage: "link.circle")
-                }
-                .tag(1)
-            
-            UserProfile()
-                .tabItem {
-                    Label("Profile", systemImage: "person.circle")
                 }
                 .tag(2)
             
@@ -61,23 +64,22 @@ struct LibraryView: View {
         }
     }
     
+    private var miniPlayerBackground: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 1.0, green: 0.5, blue: 0.0).opacity(0.95),  // Vibrant orange
+                Color(red: 1.0, green: 0.85, blue: 0.0).opacity(0.95)  // Bright yellow
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
     private var mainContent: some View {
         ZStack(alignment: .bottom) {
             // Main Content
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Categories Section
-                    Section(header: SectionHeaderView(title: "Categories")) {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(spacing: 16) {
-                                ForEach(gists) { gist in
-                                    GistCardView(gist: gist)
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-                    
                     // Your Gists Section
                     Section(header: SectionHeaderView(title: "Your Gists")) {
                         LazyVStack(spacing: 16) {
@@ -89,22 +91,45 @@ struct LibraryView: View {
                     }
                 }
                 .padding(.vertical)
-                .padding(.bottom, 85) // Adjusted to account for new spacing (65 + 8 + small buffer)
+                .padding(.bottom, 85)
             }
             
             // Mini Player above TabBar
             VStack(spacing: 0) {
-                Divider()
-                    .background(Color.gray.opacity(0.3))
                 MiniPlayerView()
                     .frame(maxHeight: 80)
                     .frame(height: 65)
-                    .background(.regularMaterial)
-                    .clipShape(Rectangle())
+                    .background(miniPlayerBackground)
+                    .clipShape(Capsule())
+                    .padding(.horizontal)
             }
             .padding(.bottom, 8)
         }
+        .background(Color("extBackgroundColor").gradient)
         .navigationTitle("Your Library")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    navigationManager.showingProfile = true
+                } label: {
+                    Image(systemName: "person.circle.fill")
+                        .foregroundColor(Color.yellow)
+                        .font(.system(size: 20))
+                }
+            }
+            
+            if selectedTab == 0 {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        navigationManager.navigateToSearch()
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.yellow)
+                            .font(.system(size: 17))
+                    }
+                }
+            }
+        }
     }
 }
 

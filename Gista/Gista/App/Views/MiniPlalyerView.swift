@@ -21,33 +21,35 @@ struct MiniPlayerView: View {
         VStack(spacing: 0) {
             // Progress bar
             GeometryReader { geometry in
-                Rectangle()
-                    .fill(Color.blue)
+                Capsule()
+                    .fill(Color.black.opacity(0.3))
                     .frame(width: geometry.size.width * progress, height: 2)
             }
             .frame(height: 2)
+            .padding(.horizontal)
             
             // Main content
             HStack(spacing: 16) {
                 // Article thumbnail
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(Color.black.opacity(0.2))
                     .frame(width: 40, height: 40)
                     .overlay(
                         Image(systemName: "doc.text")
-                            .foregroundColor(.gray)
+                            .foregroundColor(.black.opacity(0.8))
                     )
                 
                 // Title and duration
                 VStack(alignment: .leading, spacing: 2) {
                     Text(articleTitle)
                         .font(.subheadline)
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.black)
                         .lineLimit(1)
                     
                     Text(duration)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.black.opacity(0.7))
                 }
                 
                 Spacer()
@@ -59,7 +61,7 @@ struct MiniPlayerView: View {
                     } label: {
                         Image(systemName: "backward.fill")
                             .font(.title3)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.black)
                     }
                     
                     Button {
@@ -67,7 +69,7 @@ struct MiniPlayerView: View {
                     } label: {
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                             .font(.title3)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.black)
                     }
                     
                     Button {
@@ -75,18 +77,14 @@ struct MiniPlayerView: View {
                     } label: {
                         Image(systemName: "forward.fill")
                             .font(.title3)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.black)
                     }
                 }
-                .padding(.trailing)
+                .padding(.trailing, 8)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 20)
             .padding(.vertical, 8)
         }
-        .background(
-            Color(UIColor.systemBackground)
-                .shadow(radius: 5, y: -5)
-        )
         .onTapGesture {
             if let articleId = currentArticleId {
                 navigationManager.navigateToPlayback(articleId: articleId)

@@ -13,6 +13,7 @@ enum NavigationPath: Hashable {
     case settings
     case userProfile
     case playback(articleId: UUID)
+    case search
 }
 
 @MainActor
@@ -40,6 +41,10 @@ class NavigationManager: ObservableObject {
     
     func navigateToProfile() {
         showingProfile = true
+    }
+    
+    func navigateToSearch() {
+        navigationPath.append(.search)
     }
     
     func navigateToPlayback(articleId: UUID) {
@@ -76,6 +81,8 @@ struct NavigationStackContainer: ViewModifier {
                         UserProfile()
                     case .playback(let articleId):
                         PlaybackView(articleId: articleId)
+                    case .search:
+                        SearchView(viewModel: DefaultSearchViewModel())
                     }
                 }
                 .sheet(isPresented: $navigationManager.showingSettings) {
