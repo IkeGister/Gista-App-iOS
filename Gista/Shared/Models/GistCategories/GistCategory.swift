@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct GistCategory: Codable, Identifiable, Equatable {
+public struct GistCategory: Codable, Identifiable, Equatable, Hashable {
     public let id: String
     public let name: String
     public let slug: String

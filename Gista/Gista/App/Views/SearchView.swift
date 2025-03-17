@@ -35,7 +35,9 @@ struct SearchView<ViewModel: SearchViewModelProtocol>: View {
             }
             .padding(.vertical)
         }
+        .background(Color("extBackgroundColor").gradient)
         .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
         .onAppear {
             viewModel.fetchCategoriesIfNeeded()
         }
@@ -52,20 +54,14 @@ struct SearchView<ViewModel: SearchViewModelProtocol>: View {
             }
             .padding(.horizontal)
             
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                ForEach(viewModel.categories) { category in
-                    CategoryCardView(
-                        category: category,
-                        isSelected: selectedCategories.contains(category.id),
-                        onTap: {
-                            toggleCategory(category.id)
-                        }
-                    )
-                }
+            CapsuleFlowLayout(items: viewModel.categories) { category in
+                CategoryCardView(
+                    category: category,
+                    isSelected: selectedCategories.contains(category.id),
+                    onTap: {
+                        toggleCategory(category.id)
+                    }
+                )
             }
             .padding(.horizontal)
         }
@@ -103,30 +99,119 @@ struct CategoryCardView: View {
         return baseColor.opacity(opacity)
     }
     
+    private var selectedGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 1.0, green: 0.5, blue: 0.0).opacity(0.95),  // Vibrant orange
+                Color(red: 1.0, green: 0.85, blue: 0.0).opacity(0.95)  // Bright yellow
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(category.name)
-                .font(.callout)
-                .fontWeight(.semibold)
-                .foregroundColor(isSelected ? .white : .primary)
-            if !category.tags.isEmpty {
-                Text(category.tags.joined(separator: ", "))
-                    .font(.caption2)
-                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
-                    .lineLimit(1)
+        Group {
+            if isSelected {
+                Text(category.name)
+                    .font(.callout)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(selectedGradient)
+                    .clipShape(Capsule())
+            } else {
+                Text(category.name)
+                    .font(.callout)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.clear)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.yellow, lineWidth: 1)
+                    )
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        .frame(height: 55)
-        .background(isSelected ? categoryColor : categoryColor.opacity(0.1))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(categoryColor, lineWidth: isSelected ? 0 : 1)
-        )
         .onTapGesture(perform: onTap)
+    }
+}
+
+// Flow layout for capsules that automatically wraps to next line
+struct CapsuleFlowLayout<Data, Content>: View where Data: RandomAccessCollection, Data.Element: Identifiable & Hashable, Content: View {
+    let items: Data
+    let spacing: CGFloat
+    let content: (Data.Element) -> Content
+    
+    init(items: Data, spacing: CGFloat = 8, @ViewBuilder content: @escaping (Data.Element) -> Content) {
+        self.items = items
+        self.spacing = spacing
+        self.content = content
+    }
+    
+    var body: some View {
+        GeometryReader { geometry in
+            FlowLayoutView(
+                width: geometry.size.width,
+                items: items,
+                spacing: spacing,
+                content: content
+            )
+        }
+        .frame(minHeight: 50)
+    }
+}
+
+struct FlowLayoutView<Data, Content>: View where Data: RandomAccessCollection, Data.Element: Identifiable & Hashable, Content: View {
+    let width: CGFloat
+    let items: Data
+    let spacing: CGFloat
+    let content: (Data.Element) -> Content
+    
+    @State private var elementsSize: [Data.Element.ID: CGSize] = [:]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            ForEach(computeRows(), id: \.self) { rowElements in
+                HStack(spacing: spacing) {
+                    ForEach(rowElements) { element in
+                        content(element)
+                            .fixedSize()
+                            .background(
+                                GeometryReader { geo in
+                                    Color.clear.onAppear {
+                                        elementsSize[element.id] = geo.size
+                                    }
+                                }
+                            )
+                    }
+                }
+            }
+        }
+    }
+    
+    private func computeRows() -> [[Data.Element]] {
+        var rows: [[Data.Element]] = [[]]
+        var currentRow = 0
+        var remainingWidth = width
+        
+        for element in items {
+            let elementSize = elementsSize[element.id] ?? CGSize(width: 0, height: 0)
+            
+            if remainingWidth - (elementSize.width + spacing) >= 0 {
+                rows[currentRow].append(element)
+                remainingWidth -= elementSize.width + spacing
+            } else {
+                currentRow += 1
+                rows.append([element])
+                remainingWidth = width - elementSize.width
+            }
+        }
+        
+        return rows
     }
 }
 
