@@ -26,7 +26,7 @@ protocol OnboardingViewModelProtocol: ObservableObject {
     func previousStep()
     func goToSignIn()
     func goToSignUp()
-    func signInWithGoogle() async
+    func signInWithGoogle(presenting rootViewController: UIViewController) async
     func prepareForAppleSignIn() -> String
     func signInWithApple(idTokenString: String, fullName: PersonNameComponents?) async
     func setError(_ message: String)
@@ -137,35 +137,35 @@ struct WelcomeView<ViewModel: OnboardingViewModelProtocol>: View {
                     // Google Sign In Button
                     Button(action: {
                         Task {
-                            await viewModel.signInWithGoogle()
+                            if let rootViewController = getRootViewController() {
+                                await viewModel.signInWithGoogle(presenting: rootViewController)
+                            } else {
+                                viewModel.setError("Could not find root view controller")
+                            }
                         }
                     }) {
-                        HStack {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 24, height: 24)
-                                
-                                Text("G")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.black)
-                            }
+                        HStack(spacing: 12) {
+                            // Google Logo
+                            Image("googleLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
                             
                             Text("Sign in with Google")
-                                .font(.headline)
-                                .foregroundColor(.white)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.black)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white.opacity(0.15))
+                                .fill(Color.white)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
-                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 3)
+                        .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
                     }
                 }
                 .padding(.horizontal, 40)
@@ -449,35 +449,35 @@ struct SignInView<ViewModel: OnboardingViewModelProtocol>: View {
                     // Google Sign In Button
                     Button(action: {
                         Task {
-                            await viewModel.signInWithGoogle()
+                            if let rootViewController = getRootViewController() {
+                                await viewModel.signInWithGoogle(presenting: rootViewController)
+                            } else {
+                                viewModel.setError("Could not find root view controller")
+                            }
                         }
                     }) {
-                        HStack {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 24, height: 24)
-                                
-                                Text("G")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.black)
-                            }
+                        HStack(spacing: 12) {
+                            // Google Logo
+                            Image("googleLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
                             
                             Text("Sign in with Google")
-                                .font(.headline)
-                                .foregroundColor(.white)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.black)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.white.opacity(0.15))
+                                .fill(Color.white)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
-                        .shadow(color: .black.opacity(0.3), radius: 5, x: 0, y: 3)
+                        .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
                     }
                 }
                 .padding(.horizontal, 40)
@@ -680,7 +680,7 @@ class MockOnboardingViewModel: OnboardingViewModelProtocol {
         currentStep = .signup
     }
     
-    func signInWithGoogle() async {
+    func signInWithGoogle(presenting rootViewController: UIViewController) async {
         print("Mock sign in with Google")
     }
     
@@ -708,4 +708,13 @@ struct OnboardingView_Previews: PreviewProvider {
         OnboardingView<MockOnboardingViewModel>()
             .environmentObject(mockViewModel)
     }
+}
+
+// Helper function to get root view controller
+private func getRootViewController() -> UIViewController? {
+    guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+          let rootViewController = windowScene.windows.first?.rootViewController else {
+        return nil
+    }
+    return rootViewController
 }

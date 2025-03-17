@@ -18,6 +18,7 @@ class UserCredentials: ObservableObject {
     @AppStorage("userId") var userId: String = ""
     @AppStorage("username") var username: String = ""
     @AppStorage("userEmail") var userEmail: String = ""
+    @AppStorage("profilePictureUrl") var profilePictureUrl: String = ""
     
     // MARK: - Computed Properties
     var isAuthenticated: Bool {
@@ -39,6 +40,7 @@ class UserCredentials: ObservableObject {
         userId = user.userId
         username = user.username
         userEmail = user.email
+        profilePictureUrl = user.profilePictureUrl ?? ""
     }
     
     /// Clears all user credentials
@@ -47,6 +49,7 @@ class UserCredentials: ObservableObject {
         userId = ""
         username = ""
         userEmail = ""
+        profilePictureUrl = ""
     }
     
     /// Creates a User object from the current credentials
@@ -57,7 +60,8 @@ class UserCredentials: ObservableObject {
             message: "User created from credentials",
             username: username,
             email: userEmail,
-            isAuthenticated: isSignedIn
+            isAuthenticated: isSignedIn,
+            profilePictureUrl: profilePictureUrl.isEmpty ? nil : profilePictureUrl
         )
     }
     

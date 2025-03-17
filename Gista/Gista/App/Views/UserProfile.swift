@@ -10,21 +10,40 @@ import SwiftUI
 struct UserProfile: View {
     @EnvironmentObject private var navigationManager: NavigationManager
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var userCredentials = UserCredentials.shared
     
     var body: some View {
         NavigationView {
             List {
                 Section {
                     HStack {
-                        Image(systemName: "person.circle.fill")
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .foregroundColor(.gray)
+                        if let profileUrl = userCredentials.profilePictureUrl.isEmpty ? nil : userCredentials.profilePictureUrl,
+                           let url = URL(string: profileUrl) {
+                            AsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(Circle())
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                                    .frame(width: 60, height: 60)
+                                    .foregroundColor(.gray)
+                            }
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .resizable()
+                                .frame(width: 60, height: 60)
+                                .foregroundColor(.gray)
+                        }
                         
                         VStack(alignment: .leading) {
-                            Text("John Doe")
+                            let displayName = userCredentials.username.isEmpty || userCredentials.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Guest" : userCredentials.username
+                            Text(displayName)
                                 .font(.headline)
-                            Text("john.doe@example.com")
+                            let displayEmail = userCredentials.userEmail.isEmpty ? "Not signed in" : userCredentials.userEmail
+                            Text(displayEmail)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }

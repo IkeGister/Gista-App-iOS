@@ -310,7 +310,7 @@ class OnboardingViewModel: ObservableObject {
     }
     
     // MARK: - Social Authentication Methods
-    func signInWithGoogle() async {
+    func signInWithGoogle(presenting rootViewController: UIViewController) async {
         @MainActor func updateLoadingState(isLoading: Bool, errorMessage: String? = nil, showError: Bool = false) {
             self.isLoading = isLoading
             self.errorMessage = errorMessage
@@ -351,7 +351,8 @@ class OnboardingViewModel: ObservableObject {
                 username: firebaseUser.displayName ?? "",
                 email: firebaseUser.email ?? "",
                 isAuthenticated: true,
-                lastLoginDate: Date()
+                lastLoginDate: Date(),
+                profilePictureUrl: firebaseUser.photoURL?.absoluteString
             )
             
             // Update UI on main actor
@@ -406,7 +407,8 @@ class OnboardingViewModel: ObservableObject {
                 username: firebaseUser.displayName ?? "",
                 email: firebaseUser.email ?? "",
                 isAuthenticated: true,
-                lastLoginDate: Date()
+                lastLoginDate: Date(),
+                profilePictureUrl: firebaseUser.photoURL?.absoluteString
             )
             
             // Update UI on main actor
@@ -439,7 +441,8 @@ class OnboardingViewModel: ObservableObject {
             username: username,
             email: email ?? "",
             isAuthenticated: true,
-            lastLoginDate: Date()
+            lastLoginDate: Date(),
+            profilePictureUrl: nil
         )
         
         // Update the view model

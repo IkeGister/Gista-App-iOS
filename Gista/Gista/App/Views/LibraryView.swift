@@ -10,6 +10,7 @@ import Shared
 
 struct LibraryView: View {
     @EnvironmentObject private var navigationManager: NavigationManager
+    @StateObject private var userCredentials = UserCredentials.shared
     @State private var selectedTab = 0
     
     let articles: [Article]
@@ -112,9 +113,17 @@ struct LibraryView: View {
                 Button {
                     navigationManager.showingProfile = true
                 } label: {
-                    Image(systemName: "person.circle.fill")
-                        .foregroundColor(Color.yellow)
-                        .font(.system(size: 20))
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundColor(Color.yellow)
+                            .font(.system(size: 20))
+                        
+                        // Add username text
+                        let displayName = userCredentials.username.isEmpty || userCredentials.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Guest" : userCredentials.username
+                        Text(displayName)
+                            .foregroundColor(.white)
+                            .font(.system(size: 16, weight: .medium))
+                    }
                 }
             }
             
@@ -221,13 +230,11 @@ struct ArticleRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.2))
+            Image("GisterLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
                 .frame(width: 60, height: 60)
-                .overlay(
-                    Image(systemName: "doc.text")
-                        .foregroundColor(.gray)
-                )
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(article.title)

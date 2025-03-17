@@ -17,6 +17,7 @@ public class User: ObservableObject, Codable {
     @Published public var email: String
     @Published public var isAuthenticated: Bool
     @Published public var lastLoginDate: Date?
+    @Published public var profilePictureUrl: String?
     
     public enum CodingKeys: String, CodingKey {
         case userId = "user_id"
@@ -25,15 +26,17 @@ public class User: ObservableObject, Codable {
         case email
         case isAuthenticated
         case lastLoginDate
+        case profilePictureUrl
     }
     
-    public init(userId: String, message: String = "User operation completed", username: String = "", email: String = "", isAuthenticated: Bool = false, lastLoginDate: Date? = nil) {
+    public init(userId: String, message: String = "User operation completed", username: String = "", email: String = "", isAuthenticated: Bool = false, lastLoginDate: Date? = nil, profilePictureUrl: String? = nil) {
         self.userId = userId
         self.message = message
         self.username = username
         self.email = email
         self.isAuthenticated = isAuthenticated
         self.lastLoginDate = lastLoginDate
+        self.profilePictureUrl = profilePictureUrl
     }
     
     required public init(from decoder: Decoder) throws {
@@ -72,6 +75,9 @@ public class User: ObservableObject, Codable {
         
         // Try to decode lastLoginDate, but use a default if missing
         lastLoginDate = try? container.decode(Date.self, forKey: .lastLoginDate)
+        
+        // Try to decode profilePictureUrl, but use a default if missing
+        profilePictureUrl = try? container.decode(String.self, forKey: .profilePictureUrl)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -83,6 +89,9 @@ public class User: ObservableObject, Codable {
         try container.encode(isAuthenticated, forKey: .isAuthenticated)
         if let lastLoginDate = lastLoginDate {
             try container.encode(lastLoginDate, forKey: .lastLoginDate)
+        }
+        if let profilePictureUrl = profilePictureUrl {
+            try container.encode(profilePictureUrl, forKey: .profilePictureUrl)
         }
     }
 }
