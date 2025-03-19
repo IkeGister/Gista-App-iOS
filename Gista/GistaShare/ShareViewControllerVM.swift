@@ -28,16 +28,27 @@ class ShareViewControllerVM {
     
     // MARK: - User ID Management
     private func loadUserId() {
-        guard let userDefaults = UserDefaults(suiteName: ShareExtensionConstants.appGroupId) else {
-            Logger.log("Failed to access App Group UserDefaults", level: .error)
-            return
-        }
+        // Run diagnostics and log the results
+        let diagnosticMessage = AppGroupConstants.verifyAppGroupAccess(source: "ShareExtension")
+        Logger.log(diagnosticMessage, level: .debug)
         
-        if let storedUserId = userDefaults.string(forKey: "userId") {
+        // Use the shared constants
+        let userDefaults = AppGroupConstants.getUserDefaults()
+        
+        // Get the user ID using the shared key
+        if let storedUserId = userDefaults.string(forKey: AppGroupConstants.UserDefaultsKeys.userId), !storedUserId.isEmpty {
             Logger.log("Loaded userId from App Group: \(storedUserId)", level: .debug)
-            self.userId = storedUserId
+            
+            // Verify the format if we expect "username_UUID"
+            if storedUserId.contains("_") {
+                self.userId = storedUserId
+                Logger.log("User ID appears to be in expected format", level: .debug)
+            } else {
+                Logger.log("Warning: User ID found but not in expected format (username_UUID): \(storedUserId)", level: .warning)
+                self.userId = storedUserId // Still use it, but log the warning
+            }
         } else {
-            Logger.log("No userId found in App Group", level: .error)
+            Logger.log("No userId found in App Group or it was empty", level: .error)
             // Don't set a default userId in production - require proper authentication
         }
     }
@@ -99,6 +110,12 @@ class ShareViewControllerVM {
         // Validate user authentication
         guard let userId = self.userId else {
             Logger.log("No userId available", level: .error)
+            return .failure(.unauthorized)
+        }
+        
+        // Check if userId looks like a valid UUID
+        if UUID(uuidString: userId) == nil && !userId.hasPrefix("test_") {
+            Logger.log("User ID format is not valid: \(userId)", level: .error)
             return .failure(.unauthorized)
         }
         

@@ -115,6 +115,10 @@ class ShareViewController: UIViewController {
         Logger.log("ShareViewController: viewDidLoad", level: .debug)
         testAppGroupAccess()
         
+        // Log diagnostic information about app group and user credentials
+        let diagnosticMessage = AppGroupConstants.verifyAppGroupAccess(source: "ShareExtension-viewDidLoad")
+        Logger.log(diagnosticMessage, level: .debug)
+        
         // Configure view with system background color
         view.backgroundColor = .systemBackground
         
@@ -416,7 +420,7 @@ class ShareViewController: UIViewController {
     
     @objc private func createGistTapped() {
         guard let currentURL = currentURL else {
-            showError("No URL available to create gist")
+            showErrorAlert("No URL available to create gist")
             return
         }
         
@@ -435,18 +439,17 @@ class ShareViewController: UIViewController {
                 switch result {
                 case .success(let response):
                     if response.success {
-                        // Show success feedback
-                        createGistButton.configuration?.title = "Gist Created!"
-                        createGistButton.configuration?.baseBackgroundColor = .systemGreen
-                        
-                        // Reset button after delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                            self?.createGistButton.configuration?.title = "Create Gist"
-                            self?.createGistButton.configuration?.baseBackgroundColor = nil
-                            self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
-                        }
+                        // Show success alert
+                        showResultAlert(
+                            title: "Success",
+                            message: "Gist has been queued for production"
+                        )
                     } else {
-                        showError("Failed to create gist: \(response.message)")
+                        // Show failure alert with message
+                        showResultAlert(
+                            title: "Failed",
+                            message: "Could not create gist: \(response.message)"
+                        )
                     }
                     
                 case .failure(let error):
@@ -457,16 +460,50 @@ class ShareViewController: UIViewController {
                     case .timeoutError:
                         errorMessage = "Request timed out"
                     case .unauthorized:
-                        errorMessage = "Authentication required"
+                        errorMessage = "Please sign in to Gista before using this feature"
                     case .apiError(_, let message):
-                        errorMessage = message
+                        if message.contains("user doesn't exist") || message.contains("User doesn't exist") {
+                            errorMessage = "User not found. Please open the Gista app and sign in first"
+                        } else {
+                            errorMessage = message
+                        }
                     default:
                         errorMessage = "Failed to create gist"
                     }
-                    showError(errorMessage)
+                    
+                    showResultAlert(
+                        title: "Error",
+                        message: errorMessage
+                    )
                 }
             }
         }
+    }
+    
+    private func showResultAlert(title: String, message: String) {
+        // Create alert
+        let alert = UIAlertController(
+            title: title,
+            message: message,
+            preferredStyle: .alert
+        )
+        
+        // Add OK button
+        alert.addAction(UIAlertAction(
+            title: "OK",
+            style: .default,
+            handler: { [weak self] _ in
+                // Dismiss the extension when alert is dismissed
+                self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+            }
+        ))
+        
+        // Present alert
+        present(alert, animated: true)
+    }
+    
+    private func showErrorAlert(_ message: String) {
+        showResultAlert(title: "Error", message: message)
     }
     
     private func updatePreview(for type: SharedItemType, content: String, filename: String? = nil) {

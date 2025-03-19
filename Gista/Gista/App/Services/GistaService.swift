@@ -686,10 +686,9 @@ private extension GistaService {
         var body: Encodable? {
             switch self {
             case let .createUser(email, password, username):
-                // Use the UserRequest struct for proper serialization
-                // Generate a unique userId or leave it to the server
-                let uniqueId = "temp_\(UUID().uuidString)"
-                return CreateUserRequest(userId: uniqueId, email: email, password: password, username: username)
+                // Use the username_UUID format for consistent user IDs
+                let consistentUserId = "\(username)_\(UUID().uuidString)"
+                return CreateUserRequest(userId: consistentUserId, email: email, password: password, username: username)
             case let .updateUser(userId, username, email):
                 return ["user_id": userId, "username": username, "email": email]
             case .deleteUser:

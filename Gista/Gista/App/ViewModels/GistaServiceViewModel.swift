@@ -41,14 +41,16 @@ class GistaServiceViewModel: ObservableObject {
     }
     
     // MARK: - User Management
-    func createUser(email: String, password: String, username: String) async throws {
+    func createUser(email: String, password: String, username: String) async throws -> User {
         var thrownError: Error?
+        var createdUser: User?
         
         await executeTask { [weak self] in
             guard let self = self else { return nil }
             do {
                 let user = try await self.gistaService.createUser(email: email, password: password, username: username)
                 self._userId = user.userId
+                createdUser = user
                 return "User created successfully"
             } catch {
                 thrownError = error
@@ -59,6 +61,12 @@ class GistaServiceViewModel: ObservableObject {
         if let error = thrownError {
             throw error
         }
+        
+        guard let user = createdUser else {
+            throw GistaError.decodingError(NSError(domain: "GistaService", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to retrieve user from response"]))
+        }
+        
+        return user
     }
     
     func updateUser(username: String, email: String) async throws {

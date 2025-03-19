@@ -95,20 +95,10 @@ class OnboardingViewModel: ObservableObject {
             try await changeRequest.commitChanges()
             
             // Create user in Gista backend
-            try await gistaViewModel.createUser(email: email, password: password, username: username)
+            let backendUser = try await gistaViewModel.createUser(email: email, password: password, username: username)
             
-            // Create and save user object
-            let user = User(
-                userId: firebaseUser.uid,
-                message: "Account created successfully",
-                username: username,
-                email: email,
-                isAuthenticated: true,
-                lastLoginDate: Date()
-            )
-            
-            // Update user state on main actor
-            await updateUserState(user: user)
+            // Use the user object returned from the backend
+            await updateUserState(user: backendUser)
         } catch let error as NSError {
             await updateLoadingState(isLoading: false, errorMessage: error.localizedDescription, showError: true)
         } catch let error as NetworkError {
@@ -209,27 +199,109 @@ class OnboardingViewModel: ObservableObject {
         }
     }
     
-    func bypassAuthentication() {
-        // Create a test user
-        let testUser = User(
-            userId: UUID().uuidString,
-            message: "Test user created",
-            username: "TestUser",
-            email: "test@example.com",
-            isAuthenticated: true,
-            lastLoginDate: Date()
-        )
+    func bypassAuthentication() async {
+        // Set loading state to true at the beginning
+        await MainActor.run {
+            isLoading = true
+        }
         
-        // Update user state
-        self.user = testUser
-        self.isAuthenticated = true
-        self.currentStep = .complete
+        do {
+            // First, clear any existing test user
+            await deleteExistingTestUser()
+            
+            // Create a temporary test user for initial setup
+            let username = "TestUser"
+            let uuid = UUID().uuidString
+            let testUserId = "\(username)_\(uuid)"
+            let initialTestUser = User(
+                userId: testUserId,
+                message: "Test user created",
+                username: username,
+                email: "test@example.com",
+                isAuthenticated: true,
+                lastLoginDate: Date()
+            )
+            
+            // Create the user in the backend first to get the backend-assigned user ID
+            print("Creating test user in backend...")
+            let backendUser = try await createTestUserInBackend(initialTestUser)
+            
+            // Now that we have the backend user ID, update our local user
+            await MainActor.run {
+                // Create an updated user with the backend-provided ID
+                let finalUser = User(
+                    userId: backendUser.userId, // Use the backend-provided ID
+                    message: backendUser.message,
+                    username: username,
+                    email: "test@example.com",
+                    isAuthenticated: true,
+                    lastLoginDate: Date()
+                )
+                
+                // Update user state with the backend-provided user ID
+                self.user = finalUser
+                self.isAuthenticated = true
+                self.currentStep = .complete
+                
+                // Save user to local storage with backend user ID
+                saveUser(finalUser)
+                
+                print("Test user saved locally with backend ID: \(backendUser.userId)")
+            }
+            
+            // Small delay to ensure backend processing is complete
+            try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            
+            // Only dismiss the launch screen and loading state after everything is complete
+            await MainActor.run {
+                dismissLaunchScreen()
+                isLoading = false
+            }
+        } catch {
+            // Handle any errors and ensure loading state is reset
+            print("Error in bypass authentication: \(error.localizedDescription)")
+            await MainActor.run {
+                isLoading = false
+                errorMessage = "Failed to create test user: \(error.localizedDescription)"
+                showError = true
+            }
+        }
+    }
+    
+    private func deleteExistingTestUser() async {
+        // Check if we have a test user that needs to be deleted
+        let currentUser = UserCredentials.shared.toUser()
+        if currentUser.username == "TestUser" {
+            // Try to delete from backend
+            do {
+                _ = try await gistaViewModel.deleteUser()
+                print("Deleted existing test user from backend")
+            } catch {
+                print("Error deleting test user: \(error.localizedDescription)")
+                // Continue anyway, as we'll create a new one
+            }
+        }
         
-        // Save user to local storage
-        saveUser(testUser)
-        
-        // Dismiss the launch screen
-        dismissLaunchScreen()
+        // Clear local storage regardless
+        clearUser()
+    }
+    
+    private func createTestUserInBackend(_ user: User) async throws -> User {
+        do {
+            // The createUser method should return the User object from the backend response
+            let backendUser = try await gistaViewModel.createUser(
+                email: user.email,
+                password: "testpassword123", // Use a consistent password for test users
+                username: user.username
+            )
+            
+            print("Created test user in backend: \(backendUser.userId)")
+            return backendUser
+            
+        } catch {
+            print("Error creating test user in backend: \(error.localizedDescription)")
+            throw error // Rethrow the error to be handled by the calling method
+        }
     }
     
     // MARK: - Navigation Methods

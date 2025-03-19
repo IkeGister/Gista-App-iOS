@@ -15,7 +15,10 @@ import SwiftUI
 // Protocol that defines the interface needed by LaunchScreen
 protocol LaunchScreenViewModel: ObservableObject {
     func launchApp(useTestAPI: Bool)
-    func bypassAuthentication()
+    func bypassAuthentication() async
+    
+    // Add loading state
+    var isLoading: Bool { get }
 }
 
 // Make OnboardingViewModel conform to LaunchScreenViewModel
@@ -44,6 +47,11 @@ struct LaunchScreen<ViewModel: LaunchScreenViewModel>: View {
             
             // Buttons at the lower third
             buttonsView()
+            
+            // Loading overlay
+            if viewModel.isLoading {
+                loadingOverlay()
+            }
         }
         .onAppear {
             // Show buttons after 3 seconds
@@ -97,13 +105,41 @@ struct LaunchScreen<ViewModel: LaunchScreenViewModel>: View {
                     }
                     
                     actionButton(title: "Skip Sign Up", color: .orange) {
-                        viewModel.bypassAuthentication()
+                        Task {
+                            await viewModel.bypassAuthentication()
+                        }
                     }
                 }
                 .padding(.bottom, 50)
                 .transition(.opacity)
+                .disabled(viewModel.isLoading)
+                .opacity(viewModel.isLoading ? 0.6 : 1.0)
             }
         }
+    }
+    
+    @ViewBuilder
+    private func loadingOverlay() -> some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                
+                Text("Creating Test User...")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+            .padding(25)
+            .background(
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(Color.black.opacity(0.7))
+            )
+        }
+        .transition(.opacity)
     }
     
     @ViewBuilder
@@ -123,11 +159,13 @@ struct LaunchScreen<ViewModel: LaunchScreenViewModel>: View {
 
 // Simple mock view model for preview
 class MockLaunchScreenViewModel: LaunchScreenViewModel {
+    var isLoading = false
+    
     func launchApp(useTestAPI: Bool) {
         print("Launch app with useTestAPI: \(useTestAPI)")
     }
     
-    func bypassAuthentication() {
+    func bypassAuthentication() async {
         print("Bypassing authentication")
     }
 }

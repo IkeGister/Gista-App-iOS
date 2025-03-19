@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Share Extension Constants
 struct ShareExtensionConstants {
-    static let appGroupId = "group.com.5dof.gista"
+    static let appGroupId = "group.Voqa.io.Gista"
     static let shareQueueKey = "ShareQueue"
     static let sharedFilesDirectory = "SharedFiles"
 }

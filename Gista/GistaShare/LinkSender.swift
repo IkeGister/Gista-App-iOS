@@ -20,7 +20,11 @@ class LinkSender {
     
     // MARK: - Send Link
     func sendLink(userId: String, url: URL, title: String, category: String) async -> Result<LinkResponse, LinkError> {
-        Logger.log("LinkSender: Sending link \(url.absoluteString)", level: .debug)
+        // Add detailed logging of the request
+        Logger.log("LinkSender: Sending request with userId: \(userId)", level: .debug)
+        Logger.log("LinkSender: URL: \(url.absoluteString)", level: .debug)
+        Logger.log("LinkSender: Title: \(title)", level: .debug)
+        Logger.log("LinkSender: Category: \(category)", level: .debug)
         
         // Construct the API endpoint URL
         let endpoint = "/links/store"
@@ -39,6 +43,14 @@ class LinkSender {
             ],
             "autoCreateGist": true
         ]
+        
+        // Add detailed logging of the request body, especially the userId
+        Logger.log("LinkSender: Request body - userId: \(userId)", level: .debug)
+        Logger.log("LinkSender: User ID format check - contains underscore: \(userId.contains("_"))", level: .debug)
+        if let requestJSON = try? JSONSerialization.data(withJSONObject: requestBody, options: .prettyPrinted),
+           let jsonString = String(data: requestJSON, encoding: .utf8) {
+            Logger.log("LinkSender: Full request body JSON: \(jsonString)", level: .debug)
+        }
         
         // Convert the request body to JSON data
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
@@ -69,6 +81,29 @@ class LinkSender {
             Logger.log("LinkSender: Received response with status code: \(httpResponse.statusCode)", level: .debug)
             if let responseString = String(data: data, encoding: .utf8) {
                 Logger.log("LinkSender: Response body: \(responseString)", level: .debug)
+                
+                // Enhanced error detection with more patterns
+                let errorPatterns = [
+                    "user not found",
+                    "userId not found",
+                    "user doesn't exist",
+                    "User doesn't exist",
+                    "invalid user",
+                    "user invalid",
+                    "authentication required",
+                    "unauthorized",
+                    "not authorized"
+                ]
+                
+                for pattern in errorPatterns {
+                    if responseString.lowercased().contains(pattern.lowercased()) {
+                        Logger.log("LinkSender: Error pattern detected: \(pattern)", level: .error)
+                        return .failure(.apiError(
+                            statusCode: httpResponse.statusCode,
+                            message: "User not found. Please open the Gista app and sign in first."
+                        ))
+                    }
+                }
             }
             
             // Check for successful status code
