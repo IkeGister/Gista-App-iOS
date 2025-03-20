@@ -100,8 +100,6 @@ class ShareViewController: UIViewController {
     }()
     
     private lazy var createGistButton: UIView = {
-        print("Creating entirely new button implementation using UIView + Gesture")
-        
         // Create a container view
         let container = UIView()
         container.backgroundColor = .systemBlue
@@ -127,99 +125,37 @@ class ShareViewController: UIViewController {
         ])
         
         // Add tap gesture
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(createGistViewTapped))
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(createGistTapped))
         container.addGestureRecognizer(tapGesture)
         container.isUserInteractionEnabled = true
         
-        print("✅ Created button with tap gesture")
-        
         return container
     }()
-    
-    @objc func createGistViewTapped(_ gesture: UITapGestureRecognizer) {
-        print("⚡️⚡️⚡️ VIEW TAPPED GESTURE ⚡️⚡️⚡️")
-        print("⚡️⚡️⚡️ LOCATION: \(gesture.location(in: view)) ⚡️⚡️⚡️")
-        createGistTapped()
-    }
-    
-    @objc func createGistTappedTraditional() {
-        print("📱📱📱 TRADITIONAL BUTTON TAPPED 📱📱📱")
-        // Forward to the original method
-        createGistTapped()
-    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         Logger.log("ShareViewController: viewDidLoad", level: .debug)
         
-        // Add a debug button at the top of the view
-        let debugButton = UIButton(type: .system)
-        debugButton.setTitle("Debug Tap", for: .normal)
-        debugButton.backgroundColor = .systemPurple
-        debugButton.setTitleColor(.white, for: .normal)
-        debugButton.addTarget(self, action: #selector(createGistTapped), for: .touchUpInside)
-        debugButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(debugButton)
+        // Configure view with system background color
+        view.backgroundColor = .systemBackground
         
-        NSLayoutConstraint.activate([
-            debugButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            debugButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
-            debugButton.widthAnchor.constraint(equalToConstant: 100),
-            debugButton.heightAnchor.constraint(equalToConstant: 30)
-        ])
+        testAppGroupAccess()
         
-        print("Added debug button at top of view")
-        
-        // Add detailed user credential diagnostics
+        // Configure view with user defaults information
         if let userDefaults = UserDefaults(suiteName: AppConstants.appGroupId) {
-            Logger.log("🔑 SHARE EXTENSION - USER CHECK", level: .debug)
-            Logger.log("App Group ID: \(AppConstants.appGroupId)", level: .debug)
-            
             // Check if user is signed in
             let isSignedIn = userDefaults.bool(forKey: AppGroupConstants.UserDefaultsKeys.isSignedIn)
-            Logger.log("Is Signed In: \(isSignedIn)", level: .debug)
             
             // Check user ID
             if let userId = userDefaults.string(forKey: "userId") {
-                Logger.log("User ID from app group: \(userId)", level: .debug)
-                // Validate format
-                if userId.contains("_") {
-                    Logger.log("User ID appears to be in valid format (contains underscore)", level: .debug)
-                    
-                    // Manually force the userId into our viewModel for reliability
-                    print("🔐 MANUALLY SETTING USERID IN VIEWMODEL: \(userId)")
-                    viewModel.setUserId(userId)
-                } else {
-                    Logger.log("⚠️ WARNING: User ID is not in expected format: \(userId)", level: .debug)
-                }
-            } else {
-                Logger.log("❌ ERROR: No user ID found in app group", level: .debug)
+                // Manually force the userId into our viewModel for reliability
+                viewModel.setUserId(userId)
             }
-            
-            // Check username and email
-            if let username = userDefaults.string(forKey: "username") {
-                Logger.log("Username from app group: \(username)", level: .debug)
-            }
-            if let email = userDefaults.string(forKey: "userEmail") {
-                Logger.log("Email from app group: \(email)", level: .debug)
-            }
-            
-            // Dump all user-related keys for debugging
-            let allKeys = userDefaults.dictionaryRepresentation().keys
-            let userKeys = allKeys.filter { $0.starts(with: "user") || $0 == AppGroupConstants.UserDefaultsKeys.isSignedIn }
-            Logger.log("All user-related keys in app group: \(userKeys)", level: .debug)
-        } else {
-            Logger.log("❌ ERROR: Could not access app group UserDefaults", level: .debug)
         }
-        
-        testAppGroupAccess()
         
         // Log diagnostic information about app group and user credentials
         let diagnosticMessage = AppGroupConstants.verifyAppGroupAccess(source: "ShareExtension-viewDidLoad")
         Logger.log(diagnosticMessage, level: .debug)
-        
-        // Configure view with system background color
-        view.backgroundColor = .systemBackground
         
         setupUI()
         configureNavigationBar()
@@ -230,60 +166,10 @@ class ShareViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
-        print("📱📱📱 SHARE EXTENSION VIEW DID APPEAR 📱📱📱")
         Logger.log("ShareViewController: viewDidAppear - View is now visible to the user", level: .debug)
-        
-        // Add emergency tap gesture to the whole preview container
-        let emergencyTap = UITapGestureRecognizer(target: self, action: #selector(emergencyTapHandler(_:)))
-        emergencyTap.numberOfTapsRequired = 3 // Triple tap to avoid accidental triggers
-        previewContainer.addGestureRecognizer(emergencyTap)
-        previewContainer.isUserInteractionEnabled = true
-        
-        print("Added emergency triple-tap gesture to preview container")
-        
-        // Log details about current URL and button state
-        if let currentURL = currentURL {
-            print("Current URL ready for processing: \(currentURL)")
-        } else {
-            print("No URL available yet for processing")
-        }
-        
-        print("Create Gist button state - enabled: \(createGistButton.isUserInteractionEnabled), hidden: \(createGistButton.isHidden)")
-    }
-    
-    @objc func emergencyTapHandler(_ gesture: UITapGestureRecognizer) {
-        print("🚨🚨🚨 EMERGENCY TAP DETECTED 🚨🚨🚨")
-        
-        // Double check all user defaults values
-        let userDefaults = AppGroupConstants.getUserDefaults()
-        let isSignedIn = userDefaults.bool(forKey: AppGroupConstants.UserDefaultsKeys.isSignedIn) 
-        let userId = userDefaults.string(forKey: AppGroupConstants.UserDefaultsKeys.userId) ?? "nil"
-        let username = userDefaults.string(forKey: AppGroupConstants.UserDefaultsKeys.username) ?? "nil"
-        
-        print("APP GROUP VALUES:")
-        print("- isSignedIn: \(isSignedIn)")
-        print("- userId: \(userId)")
-        print("- username: \(username)")
-        
-        // Force update the view model and attempt the process
-        if userId != "nil" {
-            viewModel.setUserId(userId)
-            print("🚨 FORCING userId: \(userId) into viewModel")
-            
-            if let currentURL = currentURL {
-                print("🚨 FORCING PROCESS URL: \(currentURL)")
-                createGistTapped()
-            } else {
-                showError(message: "Emergency: No URL available")
-            }
-        } else {
-            showError(message: "Emergency: No user ID in app group")
-        }
     }
     
     private func setupUI() {
-        print("Setting up UI for ShareViewController")
         // Add preview container
         view.addSubview(previewContainer)
         
@@ -294,31 +180,6 @@ class ShareViewController: UIViewController {
         previewContainer.addSubview(createGistButton)
         previewContainer.addSubview(loadingIndicator)
         previewContainer.addSubview(errorLabel)
-        
-        print("Create Gist button setup - configuring gesture recognizers")
-        
-        // Clear any existing gesture recognizers
-        if let existingGestures = createGistButton.gestureRecognizers {
-            for gesture in existingGestures {
-                createGistButton.removeGestureRecognizer(gesture)
-            }
-        }
-        
-        // Add our tap gesture (this will be our primary action)
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(createGistViewTapped))
-        tapGesture.numberOfTapsRequired = 1
-        
-        // Also add a direct handler for the main createGistTapped method
-        let mainTapGesture = UITapGestureRecognizer(target: self, action: #selector(createGistTapped))
-        mainTapGesture.numberOfTapsRequired = 1
-        
-        // Add both gesture recognizers
-        createGistButton.addGestureRecognizer(tapGesture)
-        createGistButton.addGestureRecognizer(mainTapGesture)
-        
-        print("Added two gesture recognizers to button:")
-        print("1. Tap to createGistViewTapped - debug version")
-        print("2. Tap to createGistTapped - direct version")
         
         // Ensure view is ready to receive touches
         createGistButton.isUserInteractionEnabled = true
@@ -385,7 +246,6 @@ class ShareViewController: UIViewController {
             action: #selector(cancelTapped)
         )
         
-        print("ShareViewController: setting up navigation items")
         navigationItem.leftBarButtonItem = cancelButton
         navigationBar.items = [navigationItem]
     }
@@ -558,22 +418,16 @@ class ShareViewController: UIViewController {
     }
     
     private func updateLoadingState() {
-        print("Updating loading state: isLoading = \(isLoading)")
+        // Update UI based on loading state
         if isLoading {
             loadingIndicator.startAnimating()
-            createGistButton.isUserInteractionEnabled = false
-            createGistButton.alpha = 0.5
-            
-            // For a UIView button, we need to find the label and update its text
+            // Update button to indicate loading state
             if let label = createGistButton.subviews.first as? UILabel {
-                label.text = "Processing..."
+                label.text = "Creating..."
             }
         } else {
             loadingIndicator.stopAnimating()
-            createGistButton.isUserInteractionEnabled = true
-            createGistButton.alpha = 1.0
-            
-            // For a UIView button, we need to find the label and update its text
+            // Restore button to normal state
             if let label = createGistButton.subviews.first as? UILabel {
                 label.text = "Create Gist"
             }
@@ -581,38 +435,26 @@ class ShareViewController: UIViewController {
     }
     
     private func showError(message: String) {
-        print("❌❌❌ SHOWING ERROR: \(message) ❌❌❌")
-        Logger.log("SHOWING ERROR: \(message)", level: .error)
+        // Log the error
+        Logger.log("Error: \(message)", level: .error)
         
-        // Show error in the UI
-        DispatchQueue.main.async {
-            // Make sure error label is properly styled
-            self.errorLabel.text = message
-            self.errorLabel.textColor = .systemRed
-            self.errorLabel.backgroundColor = UIColor.systemRed.withAlphaComponent(0.1)
-            self.errorLabel.layer.cornerRadius = 8
-            self.errorLabel.clipsToBounds = true
-            self.errorLabel.isHidden = false
-            self.errorLabel.alpha = 1.0
-            
-            // Also show alert for good measure
-            let alert = UIAlertController(
-                title: "Error",
-                message: message,
-                preferredStyle: .alert
-            )
-            
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
-            
-            print("Presenting error alert")
-            self.present(alert, animated: true) {
-                print("Error alert presented")
-            }
-            
-            // Reset loading state
-            self.isLoading = false
-            self.updateLoadingState()
-        }
+        // Update the error label
+        errorLabel.text = message
+        errorLabel.isHidden = false
+        
+        // Show an alert
+        let alert = UIAlertController(
+            title: "Error",
+            message: message,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        self.present(alert, animated: true)
+        
+        // Reset loading state
+        self.isLoading = false
+        self.updateLoadingState()
     }
     
     private func normalizeURL(_ url: URL) -> URL? {
@@ -639,11 +481,6 @@ class ShareViewController: UIViewController {
     }
     
     @objc private func createGistTapped() {
-        print("CREATE GIST BUTTON TAPPED - Direct print")
-        print("-----------------------------------------------------")
-        print("🔵🔵🔵 STARTING GIST CREATION PROCESS 🔵🔵🔵")
-        print("-----------------------------------------------------")
-        
         Logger.log("CREATE GIST BUTTON TAPPED - BEGIN", level: .debug)
         
         // Check for user authentication first
@@ -651,17 +488,14 @@ class ShareViewController: UIViewController {
         let isSignedIn = userDefaults.bool(forKey: AppGroupConstants.UserDefaultsKeys.isSignedIn)
         let userId = userDefaults.string(forKey: AppGroupConstants.UserDefaultsKeys.userId) ?? ""
         
-        print("Auth check - isSignedIn: \(isSignedIn), userId: \(userId)")
         Logger.log("Auth check - isSignedIn: \(isSignedIn), userId: \(userId)", level: .debug)
         
         // Force the userId into the viewModel
         if !userId.isEmpty {
-            print("Force setting userId in viewModel: \(userId)")
             viewModel.setUserId(userId)
         }
         
         guard isSignedIn && !userId.isEmpty else {
-            print("Authentication failed - showing error")
             Logger.log("Authentication failed - showing error", level: .debug)
             // Show sign-in required error
             showError(message: "Please sign in to Gista before using this feature")
@@ -669,22 +503,18 @@ class ShareViewController: UIViewController {
         }
         
         guard let currentURL = currentURL else {
-            print("No URL available to create gist")
             Logger.log("No URL available to create gist", level: .error)
             showError(message: "No URL found to process")
             return
         }
         
         // Double check URL is valid
-        print("Double checking URL validity: \(currentURL.absoluteString)")
         guard currentURL.scheme != nil, !currentURL.absoluteString.isEmpty else {
-            print("URL is invalid")
             showError(message: "Invalid URL format")
             return
         }
         
         // Start loading animation
-        print("Starting loading animation, URL: \(currentURL)")
         Logger.log("Starting loading animation, URL: \(currentURL)", level: .debug)
         
         isLoading = true
@@ -693,32 +523,26 @@ class ShareViewController: UIViewController {
         }
         
         // Process URL using view model
-        print("Creating Task to process URL")
         Logger.log("Creating Task to process URL", level: .debug)
         
         Task {
             do {
-                print("Inside Task - about to call viewModel.processSharedURL")
                 Logger.log("Inside Task - about to call viewModel.processSharedURL", level: .debug)
                 
                 let result = await viewModel.processSharedURL(currentURL, title: currentTitle)
                 
-                print("Task completed with result: \(result)")
                 Logger.log("Task completed with result: \(result)", level: .debug)
                 
                 // Update UI on main thread
                 await MainActor.run {
-                    print("On MainActor - updating UI")
                     Logger.log("On MainActor - updating UI", level: .debug)
                     isLoading = false
                     
                     switch result {
                     case .success(let response):
-                        print("Success: \(response)")
                         Logger.log("Link sent successfully: \(response)", level: .debug)
                         showSuccessAndDismiss()
                     case .failure(let error):
-                        print("Failure: \(error)")
                         Logger.log("Failed to send link: \(error)", level: .error)
                         switch error {
                         case .unauthorized:
@@ -733,22 +557,15 @@ class ShareViewController: UIViewController {
                     }
                 }
             } catch {
-                print("❌❌❌ CRITICAL ERROR in Task: \(error)")
-                
                 await MainActor.run {
                     isLoading = false
                     showError(message: "Critical error: \(error.localizedDescription)")
                 }
             }
         }
-        
-        print("-----------------------------------------------------")
-        print("🔵🔵🔵 TASK CREATED FOR GIST PROCESSING 🔵🔵🔵")
-        print("-----------------------------------------------------")
     }
     
     private func showSuccessAndDismiss() {
-        print("📱📱📱 SHOWING SUCCESS ALERT 📱📱📱")
         Logger.log("SHOWING SUCCESS ALERT", level: .debug)
         
         // Create alert
@@ -760,14 +577,10 @@ class ShareViewController: UIViewController {
         
         // Add OK button
         alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
-            print("📱📱📱 SUCCESS ALERT OK BUTTON TAPPED 📱📱📱")
             self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
         })
         
-        print("📱📱📱 PRESENTING SUCCESS ALERT 📱📱📱")
-        present(alert, animated: true) {
-            print("📱📱📱 SUCCESS ALERT PRESENTED 📱📱📱")
-        }
+        present(alert, animated: true)
     }
     
     private func updatePreview(for type: SharedItemType, content: String, filename: String? = nil) {
