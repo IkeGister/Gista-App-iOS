@@ -75,8 +75,10 @@ class UserCredentials: ObservableObject {
         }
     }
     
-    /// Clears all user credentials
+    /// Clears all user credentials - IMPORTANT: Only call during explicit user logout or account deletion
     func clearCredentials() {
+        print("⚠️ WARNING: clearCredentials() called - this affects the app group and should ONLY be used during explicit user logout or account deletion")
+        
         // Use DispatchQueue.main.async to avoid publishing changes during view updates
         DispatchQueue.main.async {
             // Update published properties
@@ -115,10 +117,9 @@ class UserCredentials: ObservableObject {
     func syncWithUserConfiguration() {
         if let user = UserConfiguration.shared.loadUser() {
             updateFrom(user: user)
-        } else {
-            // Ensure we're not authenticated if no user is found
-            clearCredentials()
         }
+        // Never clear credentials during normal sync - 
+        // this ensures share extension can still access credentials
     }
     
     /// Saves the current credentials to UserConfiguration

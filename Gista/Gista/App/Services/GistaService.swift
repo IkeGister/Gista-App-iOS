@@ -88,8 +88,40 @@ public final class GistaService: GistaServiceProtocol {
     }
     
     public func deleteUser(userId: String) async throws -> Bool {
-        // TODO: Implement actual user deletion
-        return true
+        print("===== DELETING USER =====")
+        print("User ID: \(userId)")
+        
+        let endpoint = Endpoint.deleteUser(userId: userId)
+        
+        do {
+            // Get the raw response data
+            let (data, response) = try await performRawRequest(endpoint)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw GistaError.invalidResponse
+            }
+            
+            // Check for successful status code
+            let isSuccess = (200...299).contains(httpResponse.statusCode)
+            
+            // Log the result
+            if isSuccess {
+                print("✅ API User Deletion Successful")
+            } else {
+                print("❌ API User Deletion Failed with status: \(httpResponse.statusCode)")
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("Response: \(responseString)")
+                }
+            }
+            print("========================")
+            
+            return isSuccess
+        } catch {
+            print("❌ API User Deletion Failed")
+            print("Error: \(error)")
+            print("========================")
+            throw error
+        }
     }
 }
 

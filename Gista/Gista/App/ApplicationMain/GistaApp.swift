@@ -19,15 +19,6 @@ struct GistaApp: App {
     private let startInTestMode = false
     
     init() {
-        // Clear UserDefaults for testing purposes
-        // Comment this out for production
-        UserDefaults.standard.removeObject(forKey: "com.gista.user")
-        UserDefaults.standard.removeObject(forKey: "isSignedIn")
-        UserDefaults.standard.removeObject(forKey: "userId")
-        UserDefaults.standard.removeObject(forKey: "username")
-        UserDefaults.standard.removeObject(forKey: "userEmail")
-        UserDefaults.standard.removeObject(forKey: "profilePictureUrl")
-        
         // Initialize Firebase
         FirebaseService.shared.initialize()
         // Request notification permissions

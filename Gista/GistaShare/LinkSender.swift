@@ -20,11 +20,34 @@ class LinkSender {
     
     // MARK: - Send Link
     func sendLink(userId: String, url: URL, title: String, category: String) async -> Result<LinkResponse, LinkError> {
-        // Add detailed logging of the request
-        Logger.log("LinkSender: Sending request with userId: \(userId)", level: .debug)
-        Logger.log("LinkSender: URL: \(url.absoluteString)", level: .debug)
-        Logger.log("LinkSender: Title: \(title)", level: .debug)
-        Logger.log("LinkSender: Category: \(category)", level: .debug)
+        // Enhanced diagnostic logging
+        Logger.log("🚀 LINK SENDER - PREPARING TO SEND REQUEST", level: .debug)
+        Logger.log("---------------------------------------------------", level: .debug)
+        
+        // User ID detailed checks
+        Logger.log("🔑 User ID: \(userId)", level: .debug)
+        Logger.log("🔍 User ID format check:", level: .debug)
+        Logger.log("   - Length: \(userId.count) characters", level: .debug)
+        Logger.log("   - Contains underscore: \(userId.contains("_"))", level: .debug)
+        
+        if userId.contains("_") {
+            let components = userId.split(separator: "_", maxSplits: 1)
+            Logger.log("   - Username part: \(components[0])", level: .debug)
+            if components.count > 1 {
+                Logger.log("   - UUID part: \(components[1])", level: .debug)
+                if let _ = UUID(uuidString: String(components[1])) {
+                    Logger.log("   - UUID validation: ✅ Valid UUID format", level: .debug)
+                } else {
+                    Logger.log("   - UUID validation: ❌ Invalid UUID format", level: .debug)
+                }
+            }
+        }
+        
+        // Existing logging
+        Logger.log("📤 URL: \(url.absoluteString)", level: .debug)
+        Logger.log("📝 Title: \(title)", level: .debug)
+        Logger.log("🏷️ Category: \(category)", level: .debug)
+        Logger.log("---------------------------------------------------", level: .debug)
         
         // Construct the API endpoint URL
         let endpoint = "/links/store"
@@ -34,15 +57,30 @@ class LinkSender {
         }
         
         // Create the request body
+        // Ensure category is never null or undefined by providing a default value
+        let safeCategory = category.isEmpty ? "Uncategorized" : category
+        
+        // If the category is "Reference", change it to "Article" which might be more compatible
+        let finalCategory = safeCategory == "Reference" ? "Article" : safeCategory
+        
+        // Create request body according to API documentation
         let requestBody: [String: Any] = [
-            "userId": userId,
-            "article": [
-                "category": category,
+            "user_id": userId,
+            "link": [
+                "category": finalCategory,
                 "url": url.absoluteString,
                 "title": title
             ],
-            "autoCreateGist": true
+            "auto_create_gist": true
         ]
+        
+        // Log the final request body for debugging
+        print("🔄 FINAL REQUEST BODY:")
+        print("- user_id: \(userId)")
+        print("- link.url: \(url.absoluteString)")
+        print("- link.title: \(title)")
+        print("- link.category: \(finalCategory) (original: \(category))")
+        print("- auto_create_gist: true")
         
         // Add detailed logging of the request body, especially the userId
         Logger.log("LinkSender: Request body - userId: \(userId)", level: .debug)
@@ -81,6 +119,20 @@ class LinkSender {
             Logger.log("LinkSender: Received response with status code: \(httpResponse.statusCode)", level: .debug)
             if let responseString = String(data: data, encoding: .utf8) {
                 Logger.log("LinkSender: Response body: \(responseString)", level: .debug)
+                print("🔍 DETAILED API RESPONSE: \(responseString)")
+                
+                // Check for category-related errors
+                if responseString.contains("category") {
+                    print("⚠️ CATEGORY ISSUE DETECTED IN RESPONSE")
+                    print("📊 Category being sent: \(category)")
+                    
+                    // Try to debug the request body
+                    if let requestBodyJSON = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                       let article = requestBodyJSON["article"] as? [String: Any] {
+                        print("📦 Request article object: \(article)")
+                        print("📦 Category in request: \(article["category"] ?? "MISSING")")
+                    }
+                }
                 
                 // Enhanced error detection with more patterns
                 let errorPatterns = [
@@ -136,6 +188,27 @@ class LinkSender {
                 // Handle other error responses
                 let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
                 Logger.log("LinkSender: API error (\(httpResponse.statusCode)): \(errorMessage)", level: .error)
+                
+                // Try to parse more details from the error response
+                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("📛 DETAILED ERROR INFO: \(errorData)")
+                    
+                    // Check for specific error types
+                    if errorMessage.contains("category") {
+                        // Category-related error
+                        return .failure(.apiError(
+                            statusCode: httpResponse.statusCode,
+                            message: "Category error: Please try again later. Technical details: \(errorMessage)"
+                        ))
+                    } else if errorMessage.contains("undefined") {
+                        // Missing field error
+                        return .failure(.apiError(
+                            statusCode: httpResponse.statusCode,
+                            message: "Missing required field. Technical details: \(errorMessage)"
+                        ))
+                    }
+                }
+                
                 return .failure(.apiError(statusCode: httpResponse.statusCode, message: errorMessage))
             }
         } catch let error as URLError {

@@ -93,8 +93,9 @@ class GistaServiceViewModel: ObservableObject {
         }
     }
     
-    func deleteUser() async throws {
+    func deleteUser() async throws -> Bool {
         var thrownError: Error?
+        var userDeleted = false
         
         await executeTask { [weak self] in
             guard let self = self, let userId = self._userId else {
@@ -107,6 +108,7 @@ class GistaServiceViewModel: ObservableObject {
                 let success = try await self.gistaService.deleteUser(userId: userId)
                 if success {
                     self._userId = nil
+                    userDeleted = true
                 }
                 return success ? "User deleted successfully" : "Failed to delete user"
             } catch {
@@ -118,6 +120,8 @@ class GistaServiceViewModel: ObservableObject {
         if let error = thrownError {
             throw error
         }
+        
+        return userDeleted
     }
     
     // MARK: - Article Management

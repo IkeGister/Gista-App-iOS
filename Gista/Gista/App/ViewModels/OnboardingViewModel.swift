@@ -160,8 +160,12 @@ class OnboardingViewModel: ObservableObject {
                 self.isAuthenticated = false
                 self.currentStep = .welcome
                 
-                // Clear user from local storage
-                clearUser()
+                // Only clear local user data but preserve app group credentials
+                UserConfiguration.shared.clearUser()
+                print("DEBUG: Local user data cleared during sign out (preserving app group credentials)")
+                
+                // DO NOT clear shared credentials as it will break the share extension
+                // UserCredentials.shared.clearCredentials()
             }
             
             if let errorMessage = errorMessage {
@@ -247,6 +251,30 @@ class OnboardingViewModel: ObservableObject {
                 saveUser(finalUser)
                 
                 print("Test user saved locally with backend ID: \(backendUser.userId)")
+                
+                // Verify that user credentials were properly saved to app group
+                let userDefaults = AppGroupConstants.getUserDefaults()
+                let isSignedInValue = userDefaults.bool(forKey: AppGroupConstants.UserDefaultsKeys.isSignedIn)
+                let userIdValue = userDefaults.string(forKey: AppGroupConstants.UserDefaultsKeys.userId) ?? "nil"
+                
+                print("VERIFICATION - App Group Values after test user creation:")
+                print("- isSignedIn: \(isSignedInValue)")
+                print("- userId: \(userIdValue)")
+                
+                // Force values if not set correctly
+                if !isSignedInValue || userIdValue == "nil" {
+                    print("⚠️ WARNING: App group values not set correctly - forcing values")
+                    userDefaults.set(true, forKey: AppGroupConstants.UserDefaultsKeys.isSignedIn)
+                    userDefaults.set(backendUser.userId, forKey: AppGroupConstants.UserDefaultsKeys.userId)
+                    userDefaults.set(username, forKey: AppGroupConstants.UserDefaultsKeys.username)
+                    userDefaults.set("test@example.com", forKey: AppGroupConstants.UserDefaultsKeys.userEmail)
+                    userDefaults.synchronize()
+                    print("✅ Forced app group values: isSignedIn=true, userId=\(backendUser.userId)")
+                }
+                
+                // Log a message to confirm the TestUser ID format should work with the share extension
+                print("📱📱📱 TEST USER CREATION COMPLETE - ID FORMAT: \(backendUser.userId)")
+                print("📱📱📱 This user ID format should now be properly recognized by the Share Extension")
             }
             
             // Small delay to ensure backend processing is complete
@@ -271,19 +299,32 @@ class OnboardingViewModel: ObservableObject {
     private func deleteExistingTestUser() async {
         // Check if we have a test user that needs to be deleted
         let currentUser = UserCredentials.shared.toUser()
-        if currentUser.username == "TestUser" {
+        
+        // Only attempt to delete if we have a valid test user with a non-empty userId
+        if currentUser.username == "TestUser" && !currentUser.userId.isEmpty {
+            print("Found existing test user: \(currentUser.userId)")
             // Try to delete from backend
             do {
-                _ = try await gistaViewModel.deleteUser()
-                print("Deleted existing test user from backend")
+                let success = try await gistaViewModel.deleteUser()
+                if success {
+                    print("Successfully deleted existing test user from backend: \(currentUser.userId)")
+                } else {
+                    print("Backend reported failure deleting test user: \(currentUser.userId)")
+                }
             } catch {
                 print("Error deleting test user: \(error.localizedDescription)")
                 // Continue anyway, as we'll create a new one
             }
+        } else {
+            print("No existing test user found or userId is empty - creating fresh test user")
         }
         
-        // Clear local storage regardless
-        clearUser()
+        // Only clear local configuration, not app group credentials
+        UserConfiguration.shared.clearUser()
+        print("DEBUG: Cleared local configuration for test user creation")
+        
+        // Don't clear app group credentials as this affects the share extension
+        // clearUserForTestCreation()
     }
     
     private func createTestUserInBackend(_ user: User) async throws -> User {
@@ -555,8 +596,29 @@ class OnboardingViewModel: ObservableObject {
     }
     
     private func clearUser() {
+        // Only clear local user configuration, not app group
         UserConfiguration.shared.clearUser()
-        UserCredentials.shared.clearCredentials()
+        // Don't clear app group credentials
+        // UserCredentials.shared.clearCredentials()
+        
+        print("DEBUG: Cleared user from local storage only")
+    }
+    
+    // New version for use during test user creation that only clears local user data
+    private func clearUserForTestCreation() {
+        // Only clear local UserConfiguration, not app group data
+        UserConfiguration.shared.clearUser()
+        print("DEBUG: Cleared local user configuration for test user creation")
+        
+        // Don't clear UserCredentials as this affects the app group
+        // Comment out: UserCredentials.shared.clearCredentials()
+    }
+    
+    // New method to only clear local storage, not app group
+    private func clearLocalUserOnly() {
+        UserConfiguration.shared.clearUser()
+        // Don't clear UserCredentials which affects the app group
+        print("DEBUG: Cleared user from local storage only (not app group)")
     }
 }
 
