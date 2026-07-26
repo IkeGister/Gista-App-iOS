@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+
+# Secrets — never commit
+Secrets.xcconfig
+*.secret.xcconfig
+.env
+.env.local
+
+# Claude Code local state
+.claude/settings.local.json
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+
+# Spike / scratch output
+scripts/__pycache__/

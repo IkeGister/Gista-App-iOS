@@ -4,39 +4,34 @@
 //
 //  Created by Tony Nlemadim on 1/2/25.
 //
+//  v1 (2026-07-25): auth de-gated per the ElevenLabs readout spec §11 —
+//  launch screen → ContentView unconditionally, no credential check.
+//  Firebase is no longer initialized and no notification permission is
+//  requested (v1 sends no notifications). Auth/Firebase/onboarding code
+//  stays in the repo, compiled and dormant.
+//
 
 import SwiftUI
-import UserNotifications
 
 @main
 struct GistaApp: App {
     @StateObject private var sharedContentService = SharedContentService.shared
     @StateObject private var navigationManager = NavigationManager()
     @StateObject private var onboardingViewModel = OnboardingViewModel()
-    @StateObject private var userCredentials = UserCredentials.shared
-    
-    // Set this to true to start the app in test mode
-    private let startInTestMode = false
-    
-    init() {
-        // Initialize Firebase
-        FirebaseService.shared.initialize()
-        // Request notification permissions
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-            print("Notification permission granted: \(granted)")
-        }
-    }
-    
+
     var body: some Scene {
         WindowGroup {
             if onboardingViewModel.showLaunchScreen {
+                // Branded splash only in v1 — auto-dismisses into content.
+                // (LaunchScreen's tap-to-launch buttons appear after 3 s;
+                // we dismiss before then, so it is purely a splash.)
                 LaunchScreen.withOnboardingViewModel()
                     .environmentObject(onboardingViewModel)
                     .preferredColorScheme(ColorScheme.dark)
-            } else if !userCredentials.isAuthenticated {
-                OnboardingView.withOnboardingViewModel()
-                    .environmentObject(onboardingViewModel)
-                    .preferredColorScheme(ColorScheme.dark)
+                    .task {
+                        try? await Task.sleep(for: .seconds(1.5))
+                        onboardingViewModel.dismissLaunchScreen()
+                    }
             } else {
                 ContentView()
                     .withNavigationStack()
@@ -49,5 +44,6 @@ struct GistaApp: App {
                     .preferredColorScheme(ColorScheme.dark)
             }
         }
+        .modelContainer(GistaModelContainer.shared)
     }
 }
